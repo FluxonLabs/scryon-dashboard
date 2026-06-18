@@ -7,6 +7,8 @@ import { useTranscript } from "@/hooks/useTranscript";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useActions } from "@/hooks/useActions";
 import { StatusBadge, SentimentBadge, PriorityDot } from "@/components/StatusBadge";
+import { SentimentComparisonChart, SentimentProgressionChart, ToneRadarChart } from "@/components/charts/SentimentChart";
+import { DiscussionPhaseChart, ActionIntentChart } from "@/components/charts/AnalysisCharts";
 import { formatDate, formatDuration } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, AlertCircle } from "lucide-react";
@@ -147,7 +149,7 @@ function AnalysisTab({ loading, analysis, isCompleted }: {
           {analysis.oneLineSummary}
         </p>
         {analysis.executiveSummaryBullets?.length > 0 && (
-          <ul className="space-y-2">
+          <ul className="space-y-2 mb-4">
             {analysis.executiveSummaryBullets.map((b, i) => (
               <li key={i} className="flex gap-3 text-sm">
                 <span className={cn("mt-1.5 w-1.5 h-1.5 rounded-full shrink-0", importanceColor(b.importance))} />
@@ -157,7 +159,7 @@ function AnalysisTab({ loading, analysis, isCompleted }: {
           </ul>
         )}
         {analysis.conversationOutcome && (
-          <div className="mt-4 p-3 rounded-lg bg-[var(--brand-dim)] border border-[var(--brand)]/20">
+          <div className="p-3 rounded-lg bg-[var(--brand-dim)] border border-[var(--brand)]/20">
             <p className="text-xs font-semibold text-[var(--brand-light)] mb-1">Outcome</p>
             <p className="text-sm text-[var(--text-secondary)]">{analysis.conversationOutcome}</p>
           </div>
@@ -167,34 +169,46 @@ function AnalysisTab({ loading, analysis, isCompleted }: {
       {/* Sentiment */}
       {analysis.sentiment && (
         <Section title="Sentiment">
-          <div className="space-y-3">
-            <SentimentRow
-              label="Overall"
-              score={analysis.sentiment.score}
-              note={analysis.sentiment.reason}
-            />
-            {analysis.sentiment.userSentiment && (
-              <SentimentRow
-                label="You"
-                score={analysis.sentiment.userSentiment.score}
-                note={analysis.sentiment.userSentiment.notes}
-              />
-            )}
-            {analysis.sentiment.contactSentiment && (
-              <SentimentRow
-                label={analysis.sentiment.contactSentiment.overall ? "Contact" : "Contact"}
-                score={analysis.sentiment.contactSentiment.score}
-                note={analysis.sentiment.contactSentiment.notes}
-              />
-            )}
-          </div>
+          <SentimentComparisonChart sentiment={analysis.sentiment} />
+          <p className="text-xs text-[var(--text-muted)] mt-2 mb-3 italic">{analysis.sentiment.reason}</p>
+
+          {analysis.sentiment.progression && analysis.sentiment.progression.length > 0 && (
+            <div className="mb-3">
+              <p className="text-xs text-[var(--text-muted)] mb-2">Mood progression</p>
+              <SentimentProgressionChart progression={analysis.sentiment.progression} />
+            </div>
+          )}
+
           {analysis.sentiment.emotionalSignals && analysis.sentiment.emotionalSignals.length > 0 && (
-            <div className="flex gap-2 flex-wrap mt-4">
+            <div className="flex gap-2 flex-wrap mt-2">
               {analysis.sentiment.emotionalSignals.map((s) => (
                 <span key={s} className="text-xs px-2 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)]">
                   {s}
                 </span>
               ))}
+            </div>
+          )}
+
+          {(analysis.sentiment.userSentiment || analysis.sentiment.contactSentiment) && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              {analysis.sentiment.userSentiment && (
+                <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-subtle)]">
+                  <p className="text-[10px] text-[var(--text-muted)] mb-1">You</p>
+                  <p className="text-sm font-semibold text-[var(--foreground)] capitalize">{analysis.sentiment.userSentiment.overall}</p>
+                  {analysis.sentiment.userSentiment.notes && (
+                    <p className="text-xs text-[var(--text-muted)] mt-1">{analysis.sentiment.userSentiment.notes}</p>
+                  )}
+                </div>
+              )}
+              {analysis.sentiment.contactSentiment && (
+                <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-subtle)]">
+                  <p className="text-[10px] text-[var(--text-muted)] mb-1">Contact</p>
+                  <p className="text-sm font-semibold text-[var(--foreground)] capitalize">{analysis.sentiment.contactSentiment.overall}</p>
+                  {analysis.sentiment.contactSentiment.notes && (
+                    <p className="text-xs text-[var(--text-muted)] mt-1">{analysis.sentiment.contactSentiment.notes}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </Section>
@@ -203,20 +217,17 @@ function AnalysisTab({ loading, analysis, isCompleted }: {
       {/* Tone */}
       {analysis.tone && (
         <Section title="Tone">
-          <div className="grid grid-cols-3 gap-3 mb-3">
-            {[
-              { label: "Register", value: analysis.tone.overall },
-              { label: "Formality", value: analysis.tone.formality },
-              { label: "Energy", value: analysis.tone.energy },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-[var(--surface-2)] rounded-lg p-3 border border-[var(--border-subtle)]">
-                <p className="text-[10px] text-[var(--text-muted)] mb-1">{label}</p>
-                <p className="text-sm font-semibold text-[var(--foreground)] capitalize">{value}</p>
-              </div>
-            ))}
-          </div>
+          <ToneRadarChart
+            formality={analysis.tone.formality}
+            energy={analysis.tone.energy}
+            pace={analysis.tone.pace}
+            overall={analysis.tone.overall}
+          />
+          {analysis.tone.notes && (
+            <p className="text-xs text-[var(--text-muted)] mt-3 italic">{analysis.tone.notes}</p>
+          )}
           {analysis.tone.descriptors?.length > 0 && (
-            <div className="flex gap-2 flex-wrap">
+            <div className="flex gap-2 flex-wrap mt-3">
               {analysis.tone.descriptors.map((d) => (
                 <span key={d} className="text-xs px-2 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] capitalize">
                   {d}
@@ -225,6 +236,18 @@ function AnalysisTab({ loading, analysis, isCompleted }: {
             </div>
           )}
         </Section>
+      )}
+
+      {/* Discussion phases + action intents side by side */}
+      {(analysis.keyDiscussionPoints?.length > 0 || analysis.actionItems?.length > 0) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+          {analysis.keyDiscussionPoints?.length > 0 && (
+            <DiscussionPhaseChart points={analysis.keyDiscussionPoints} />
+          )}
+          {analysis.actionItems?.length > 0 && (
+            <ActionIntentChart actions={analysis.actionItems} />
+          )}
+        </div>
       )}
 
       {/* Tags */}

@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useCalls } from "@/hooks/useCalls";
 import { useActions } from "@/hooks/useActions";
-import { StatusBadge, SentimentBadge } from "@/components/StatusBadge";
+import { StatusBadge } from "@/components/StatusBadge";
+import { CallActivityChart, CallStatusPieChart, CallHeatmap } from "@/components/charts/CallActivityChart";
 import { useAuth } from "@/context/AuthContext";
 import { Phone, CheckSquare, Clock, TrendingUp, ArrowRight } from "lucide-react";
 import { formatDistanceToNow } from "@/lib/date";
@@ -60,6 +61,34 @@ export default function DashboardPage() {
           color="muted"
         />
       </div>
+
+      {/* Charts row */}
+      {!callsLoading && calls.length > 0 && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          <div className="lg:col-span-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+              Call Activity — Last 14 Days
+            </h2>
+            <CallActivityChart calls={calls} />
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
+              By Status
+            </h2>
+            <CallStatusPieChart calls={calls} />
+          </div>
+        </div>
+      )}
+
+      {/* Heatmap */}
+      {!callsLoading && calls.length > 0 && (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 mb-8">
+          <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+            Call History
+          </h2>
+          <CallHeatmap calls={calls} />
+        </div>
+      )}
 
       {/* Recent calls */}
       <div className="mb-8">
