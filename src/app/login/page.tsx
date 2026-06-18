@@ -14,7 +14,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-[var(--background)] flex flex-col items-center justify-center px-4">
       <Link href="https://scryon.app" className="absolute top-6 left-6 flex items-center">
-        <Image src="/logo-white.png" alt="Scryon" width={90} height={30} className="h-7 w-auto" />
+        <Image src="/logo-blue.png"  alt="Scryon" width={90} height={30} className="h-7 w-auto block dark:hidden" />
+        <Image src="/logo-white.png" alt="Scryon" width={90} height={30} className="h-7 w-auto hidden dark:block" />
       </Link>
 
       <div className="w-full max-w-sm">
