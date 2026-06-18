@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   signInWithPopup,
@@ -8,12 +8,22 @@ import {
   createUserWithEmailAndPassword,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
+import { useAuth } from "@/context/AuthContext";
 
 type Mode = "choose" | "email-signin" | "email-signup";
 
 export function LoginForm() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [mode, setMode] = useState<Mode>("choose");
+
+  // If Firebase restores a session after the AuthGuard already redirected here,
+  // bounce the user back to the dashboard.
+  useEffect(() => {
+    if (!authLoading && user) {
+      router.replace("/");
+    }
+  }, [user, authLoading, router]);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
