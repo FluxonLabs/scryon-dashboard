@@ -4,11 +4,19 @@ import { useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
-import { LogOut, User, Mail, ExternalLink } from "lucide-react";
+import { useTheme, type ThemeMode } from "@/context/ThemeContext";
+import { LogOut, User, Mail, ExternalLink, Sun, Moon, Monitor } from "lucide-react";
+
+const THEME_OPTIONS: { mode: ThemeMode; label: string; Icon: React.ElementType }[] = [
+  { mode: "light",  label: "Light",  Icon: Sun },
+  { mode: "dark",   label: "Dark",   Icon: Moon },
+  { mode: "system", label: "System", Icon: Monitor },
+];
 
 export default function SettingsPage() {
   const { user } = useAuth();
   const router = useRouter();
+  const { mode: themeMode, setMode } = useTheme();
 
   async function handleSignOut() {
     await signOut(auth);
@@ -18,6 +26,37 @@ export default function SettingsPage() {
   return (
     <div className="p-6 max-w-xl mx-auto">
       <h1 className="text-2xl font-bold text-[var(--foreground)] mb-8">Settings</h1>
+
+      {/* Appearance */}
+      <section className="mb-6">
+        <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+          Appearance
+        </h2>
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] px-5 py-4">
+          <p className="text-sm font-medium text-[var(--foreground)] mb-1">Theme</p>
+          <p className="text-xs text-[var(--text-muted)] mb-4">Choose how the dashboard looks. Saved in this browser.</p>
+          <div className="flex gap-2">
+            {THEME_OPTIONS.map(({ mode, label, Icon }) => {
+              const active = themeMode === mode;
+              return (
+                <button
+                  key={mode}
+                  onClick={() => setMode(mode)}
+                  className={[
+                    "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-medium border transition-colors",
+                    active
+                      ? "border-[var(--brand)] bg-[var(--brand-dim)] text-[var(--brand)]"
+                      : "border-[var(--border)] bg-[var(--surface-2)] text-[var(--text-secondary)] hover:border-[var(--brand)] hover:text-[var(--foreground)]",
+                  ].join(" ")}
+                >
+                  <Icon size={13} />
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </section>
 
       {/* Profile */}
       <section className="mb-6">
