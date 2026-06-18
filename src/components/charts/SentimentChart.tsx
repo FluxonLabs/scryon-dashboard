@@ -33,7 +33,7 @@ export function SentimentComparisonChart({ sentiment }: SentimentBarProps) {
         <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={52} />
         <ReferenceLine x={0} stroke="var(--border)" />
         <Tooltip
-          formatter={(v: number) => [v > 0 ? `+${v.toFixed(2)}` : v.toFixed(2), "Score"]}
+          formatter={(v) => { const n = Number(v); return [n > 0 ? `+${n.toFixed(2)}` : n.toFixed(2), "Score"]; }}
           contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
           labelStyle={{ color: "var(--foreground)" }}
         />

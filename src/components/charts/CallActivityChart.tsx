@@ -42,7 +42,7 @@ export function CallActivityChart({ calls }: ActivityProps) {
         />
         <YAxis tick={{ fontSize: 9, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} allowDecimals={false} />
         <Tooltip
-          formatter={(v: number) => [v, "Calls"]}
+          formatter={(v) => [v, "Calls"]}
           contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
           labelStyle={{ color: "var(--text-secondary)" }}
         />
@@ -80,7 +80,7 @@ export function CallStatusPieChart({ calls }: ActivityProps) {
           ))}
         </Pie>
         <Tooltip
-          formatter={(v: number, name: string) => [v, name]}
+          formatter={(v, name) => [v, name]}
           contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
         />
         <Legend

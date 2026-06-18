@@ -61,7 +61,7 @@ export function DiscussionPhaseChart({ points }: DiscussionPieProps) {
             ))}
           </Pie>
           <Tooltip
-            formatter={(v: number, name: string) => [v, name]}
+            formatter={(v, name) => [v, name]}
             contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
           />
           <Legend
@@ -119,7 +119,7 @@ export function ActionIntentChart({ actions }: ActionIntentPieProps) {
             ))}
           </Pie>
           <Tooltip
-            formatter={(v: number, name: string) => [v, name]}
+            formatter={(v, name) => [v, name]}
             contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
           />
           <Legend
