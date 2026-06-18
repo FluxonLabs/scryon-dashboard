@@ -76,20 +76,20 @@ export default function CallsPage() {
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border-subtle)] overflow-hidden">
             {filtered.map((call) => (
               <Link
-                key={call.callId}
-                href={`/calls/${call.callId}`}
+                key={call.id}
+                href={`/calls/${call.id}`}
                 className="flex items-center gap-4 px-4 py-3.5 hover:bg-[var(--surface-2)] transition-colors group"
               >
                 <div className="w-9 h-9 rounded-full bg-[var(--brand-dim)] flex items-center justify-center text-[var(--brand-light)] font-bold text-sm flex-shrink-0">
-                  {(call.contactName ?? call.title ?? "?")[0].toUpperCase()}
+                  {(call.title ?? call.originalFileName ?? "?")[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-[var(--foreground)] truncate">
-                    {call.title ?? call.contactName ?? "Untitled call"}
+                    {call.title ?? call.originalFileName ?? "Untitled call"}
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    {call.contactName && call.title && (
-                      <span className="text-xs text-[var(--text-muted)]">{call.contactName}</span>
+                    {call.shortSummary && (
+                      <span className="text-xs text-[var(--text-muted)] truncate max-w-xs">{call.shortSummary}</span>
                     )}
                     {call.durationSeconds && (
                       <span className="text-xs text-[var(--text-muted)]">{formatDuration(call.durationSeconds)}</span>
@@ -98,9 +98,6 @@ export default function CallsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-2 flex-shrink-0">
-                  {call.direction && (
-                    <span className="text-[10px] text-[var(--text-muted)]">{call.direction === "INCOMING" ? "↙" : "↗"}</span>
-                  )}
                   <StatusBadge status={call.status} />
                   <ArrowRight size={14} className="text-[var(--text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>

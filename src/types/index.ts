@@ -5,20 +5,31 @@ export type CallDirection = "INCOMING" | "OUTGOING";
 export type SpeakerRole = "USER" | "CONTACT" | "UNKNOWN";
 
 export interface CallSummary {
-  callId: string;
+  id: string;
   title: string | null;
-  contactName: string | null;
-  organization: string | null;
-  direction: CallDirection | null;
+  originalFileName: string | null;
   status: CallStatus;
   durationSeconds: number | null;
-  recordedAt: string | null;
   createdAt: string;
+  shortSummary: string | null;
+  tags: string[] | null;
 }
 
-export interface CallDetail extends CallSummary {
+export interface CallDetail {
+  id: string;
+  title: string | null;
+  originalFileName: string | null;
+  contactName: string | null;
   phoneNumber: string | null;
-  errorReason: string | null;
+  durationSeconds: number | null;
+  recordedAt: string | null;
+  status: CallStatus;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  direction: CallDirection | null;
+  contactId: string | null;
+  organization: string | null;
 }
 
 // ─── Transcript ───────────────────────────────────────────────────────────────

@@ -84,19 +84,18 @@ export default function DashboardPage() {
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border-subtle)] overflow-hidden">
             {recentCalls.map((call) => (
               <Link
-                key={call.callId}
-                href={`/calls/${call.callId}`}
+                key={call.id}
+                href={`/calls/${call.id}`}
                 className="flex items-center gap-4 px-4 py-3 hover:bg-[var(--surface-2)] transition-colors group"
               >
                 <div className="w-8 h-8 rounded-full bg-[var(--brand-dim)] flex items-center justify-center text-[var(--brand-light)] font-bold text-xs flex-shrink-0">
-                  {(call.contactName ?? call.title ?? "?")[0].toUpperCase()}
+                  {(call.title ?? call.originalFileName ?? "?")[0].toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-[var(--foreground)] truncate">
-                    {call.title ?? call.contactName ?? "Untitled call"}
+                    {call.title ?? call.originalFileName ?? "Untitled call"}
                   </p>
                   <p className="text-xs text-[var(--text-muted)]">
-                    {call.contactName && call.title ? call.contactName + " · " : ""}
                     {call.durationSeconds ? formatDuration(call.durationSeconds) + " · " : ""}
                     {formatDistanceToNow(call.createdAt)}
                   </p>
