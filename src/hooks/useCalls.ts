@@ -2,37 +2,36 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
-import type { CallSummary, CallsPage } from "@/types";
+import type { CallSummary } from "@/types";
 
-export function useCalls(limit = 20) {
+export function useCalls(pageSize = 50) {
   const [items, setItems] = useState<CallSummary[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const load = useCallback(async (nextCursor?: string) => {
+  const load = useCallback(async (pageIndex: number) => {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ limit: String(limit) });
-      if (nextCursor) params.set("cursor", nextCursor);
+      const params = new URLSearchParams({ page: String(pageIndex), size: String(pageSize) });
       const res = await apiFetch(`/api/calls?${params}`);
-      const data: CallsPage = await res.json();
-      setItems((prev) => (nextCursor ? [...prev, ...data.items] : data.items));
-      setCursor(data.nextCursor);
-      setHasMore(!!data.nextCursor);
+      const data: CallSummary[] = await res.json();
+      setItems((prev) => (pageIndex > 0 ? [...prev, ...data] : data));
+      setHasMore(data.length === pageSize);
+      setPage(pageIndex);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load calls");
     } finally {
       setLoading(false);
     }
-  }, [limit]);
+  }, [pageSize]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { load(0); }, [load]);
 
-  const loadMore = () => { if (cursor) load(cursor); };
-  const refresh = () => { setItems([]); setCursor(null); setHasMore(true); load(); };
+  const loadMore = () => { if (hasMore) load(page + 1); };
+  const refresh = () => { setItems([]); setPage(0); setHasMore(true); load(0); };
 
   return { items, loading, error, hasMore, loadMore, refresh };
 }

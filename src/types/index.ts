@@ -21,11 +21,6 @@ export interface CallDetail extends CallSummary {
   errorReason: string | null;
 }
 
-export interface CallsPage {
-  items: CallSummary[];
-  nextCursor: string | null;
-}
-
 // ─── Transcript ───────────────────────────────────────────────────────────────
 
 export interface TranscriptSpeaker {

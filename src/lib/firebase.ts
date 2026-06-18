@@ -14,8 +14,8 @@ let app: FirebaseApp;
 let auth: Auth;
 let googleProvider: GoogleAuthProvider;
 
-// Only initialize on the client — avoids build-time Firebase errors
-if (typeof window !== "undefined") {
+// Only initialize on the client with a valid config — avoids build-time Firebase errors
+if (typeof window !== "undefined" && firebaseConfig.apiKey) {
   app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
   auth = getAuth(app);
   googleProvider = new GoogleAuthProvider();
