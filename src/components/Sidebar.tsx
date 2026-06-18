@@ -40,7 +40,8 @@ export function Sidebar() {
       {/* Logo */}
       <div className="px-5 h-16 flex items-center border-b border-[var(--border)]">
         <Link href="/">
-          <Image src="/logo-white.png" alt="Scryon" width={90} height={30} className="h-7 w-auto" />
+          <Image src="/logo-blue.png"  alt="Scryon" width={90} height={30} className="h-7 w-auto block dark:hidden" />
+          <Image src="/logo-white.png" alt="Scryon" width={90} height={30} className="h-7 w-auto hidden dark:block" />
         </Link>
       </div>
 
