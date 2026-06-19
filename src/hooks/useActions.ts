@@ -26,8 +26,8 @@ export function useActions() {
   useEffect(() => { load(); }, [load]);
 
   const toggle = useCallback(async (id: string, current: ActionItem["status"]) => {
-    const isDone = current === "COMPLETED" || current === "DONE" || current === "DISMISSED";
-    const next: ActionItem["status"] = isDone ? "PENDING" : "COMPLETED";
+    const isDone = current === "DONE" || current === "DISMISSED";
+    const next: ActionItem["status"] = isDone ? "OPEN" : "DONE";
     setItems((prev) => prev.map((a) => (a.id === id ? { ...a, status: next } : a)));
     try {
       await apiFetch(`/api/actions/${id}`, {

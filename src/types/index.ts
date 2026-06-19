@@ -153,7 +153,7 @@ export interface Analysis {
 
 // ─── Action Items ─────────────────────────────────────────────────────────────
 
-export type ActionItemStatus = "PENDING" | "COMPLETED" | "OPEN" | "IN_PROGRESS" | "DONE" | "DISMISSED";
+export type ActionItemStatus = "OPEN" | "IN_PROGRESS" | "DONE" | "DISMISSED";
 export type ActionItemPriority = "LOW" | "MEDIUM" | "HIGH";
 
 export interface ActionItem {
@@ -170,6 +170,7 @@ export interface ActionItem {
   updatedAt: string | null;
   priority: ActionItemPriority | null;
   source: "AI" | "MANUAL" | null;
+  contactId: string | null;
 }
 
 export interface ActionItemInput {
