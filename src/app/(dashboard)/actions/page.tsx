@@ -21,7 +21,7 @@ import type { ActionItem, ActionItemPriority } from "@/types";
 type StatusFilter = "open" | "done" | "all";
 type PriorityFilter = ActionItemPriority | "ALL";
 
-const isDone = (s: string) => s === "COMPLETED" || s === "DONE" || s === "DISMISSED";
+const isDone = (s: string) => s === "DONE" || s === "DISMISSED";
 
 export default function ActionsPage() {
   const { items, loading, error, toggle, createAction, updateAction, deleteAction } = useActions();

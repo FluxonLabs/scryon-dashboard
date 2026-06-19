@@ -493,7 +493,7 @@ function ActionsTab({
   onDelete: (id: string) => Promise<void>;
   deletingId: string | null;
 }) {
-  const isDone = (s: string) => s === "COMPLETED" || s === "DONE" || s === "DISMISSED";
+  const isDone = (s: string) => s === "DONE" || s === "DISMISSED";
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (

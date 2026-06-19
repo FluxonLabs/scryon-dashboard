@@ -15,7 +15,7 @@ export default function DashboardPage() {
   const { items: actions, loading: actionsLoading } = useActions();
 
   const completed = calls.filter((c) => c.status === "COMPLETED");
-  const pending = actions.filter((a) => a.status === "PENDING");
+  const pending = actions.filter((a) => a.status === "OPEN" || a.status === "IN_PROGRESS");
   const avgSentiment = null; // computed from analysis — requires per-call fetch, shown in Phase 3
 
   const recentCalls = calls.slice(0, 5);
