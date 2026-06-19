@@ -153,15 +153,29 @@ export interface Analysis {
 
 // ─── Action Items ─────────────────────────────────────────────────────────────
 
+export type ActionItemStatus = "PENDING" | "COMPLETED" | "OPEN" | "IN_PROGRESS" | "DONE" | "DISMISSED";
+export type ActionItemPriority = "LOW" | "MEDIUM" | "HIGH";
+
 export interface ActionItem {
   id: string;
   callRecordId: string;
   title: string;
   description: string | null;
   dueDate: string | null;
-  status: "PENDING" | "COMPLETED" | "OPEN" | "IN_PROGRESS" | "DONE" | "DISMISSED";
+  status: ActionItemStatus;
   ownerDisplayName: string | null;
   ownerRole: SpeakerRole;
   intent: string | null;
   createdAt: string;
+  updatedAt: string | null;
+  priority: ActionItemPriority | null;
+  source: "AI" | "MANUAL" | null;
+}
+
+export interface ActionItemInput {
+  title: string;
+  description?: string | null;
+  dueDate?: string | null;
+  priority?: ActionItemPriority | null;
+  status?: ActionItemStatus;
 }
