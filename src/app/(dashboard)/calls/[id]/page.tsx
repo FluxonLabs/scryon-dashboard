@@ -3,15 +3,18 @@
 import { use, useState } from "react";
 import Link from "next/link";
 import { useCall } from "@/hooks/useCall";
+import { useContacts } from "@/hooks/useContacts";
 import { useTranscript } from "@/hooks/useTranscript";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useActions } from "@/hooks/useActions";
 import { StatusBadge, SentimentBadge, PriorityDot } from "@/components/StatusBadge";
 import { SentimentComparisonChart, SentimentProgressionChart, ToneRadarChart } from "@/components/charts/SentimentChart";
 import { DiscussionPhaseChart, ActionIntentChart } from "@/components/charts/AnalysisCharts";
+import { ContactSelectorModal } from "@/components/ContactSelectorModal";
 import { formatDate, formatDuration } from "@/lib/date";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, AlertCircle } from "lucide-react";
+import { apiFetch } from "@/lib/api";
+import { ArrowLeft, AlertCircle, UserCircle, UserPlus } from "lucide-react";
 import type { SpeakerRole } from "@/types";
 
 type Tab = "transcript" | "analysis" | "actions";
@@ -19,10 +22,25 @@ type Tab = "transcript" | "analysis" | "actions";
 export default function CallDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const [tab, setTab] = useState<Tab>("transcript");
-  const { call, loading: callLoading } = useCall(id);
+  const { call, setCall, loading: callLoading } = useCall(id);
+  const { contacts, loading: contactsLoading } = useContacts();
+  const [showContactPicker, setShowContactPicker] = useState(false);
   const { transcript, loading: txLoading } = useTranscript(id);
   const { analysis, loading: anLoading } = useAnalysis(id);
   const { items: allActions, toggle } = useActions();
+
+  const assignedContact = call?.scryonContactId
+    ? contacts.find((c) => c.id === call.scryonContactId) ?? null
+    : null;
+
+  async function handleAssignContact(contactId: string | null) {
+    const res = await apiFetch(`/api/calls/${id}/contact`, {
+      method: "PATCH",
+      body: JSON.stringify({ contactId }),
+    });
+    const updated = await res.json();
+    setCall(updated);
+  }
 
   const callActions = allActions.filter((a) => a.callRecordId === id);
   const isCompleted = call?.status === "COMPLETED";
@@ -56,9 +74,27 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
             {call?.status && <StatusBadge status={call.status} />}
           </div>
         </div>
-        {analysis?.sentiment && (
-          <SentimentBadge score={analysis.sentiment.score} overall={analysis.sentiment.overall} />
-        )}
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          {analysis?.sentiment && (
+            <SentimentBadge score={analysis.sentiment.score} overall={analysis.sentiment.overall} />
+          )}
+          <button
+            onClick={() => setShowContactPicker(true)}
+            className="flex items-center gap-1.5 text-xs px-2 py-1 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--brand)] transition-colors"
+          >
+            {assignedContact ? (
+              <>
+                <UserCircle size={12} className="text-[var(--brand-light)]" />
+                <span className="text-[var(--brand-light)] font-medium">{assignedContact.name}</span>
+              </>
+            ) : (
+              <>
+                <UserPlus size={12} />
+                Assign contact
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -96,6 +132,17 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
           <ActionsTab actions={callActions} onToggle={toggle} />
         )}
       </div>
+
+      {/* Contact selector modal */}
+      {showContactPicker && (
+        <ContactSelectorModal
+          contacts={contacts}
+          contactsLoading={contactsLoading}
+          currentContactId={call?.scryonContactId}
+          onPick={handleAssignContact}
+          onClose={() => setShowContactPicker(false)}
+        />
+      )}
     </div>
   );
 }
@@ -291,6 +338,8 @@ function ActionsTab({
     return <NotReady message="No action items found for this call." />;
   }
 
+  const isDone = (s: string) => s === "COMPLETED" || s === "DONE" || s === "DISMISSED";
+
   return (
     <div className="max-w-2xl space-y-3">
       {actions.map((a) => (
@@ -298,7 +347,7 @@ function ActionsTab({
           key={a.id}
           className={cn(
             "flex items-start gap-3 p-4 rounded-xl border transition-colors",
-            a.status === "COMPLETED"
+            isDone(a.status)
               ? "border-[var(--border-subtle)] bg-[var(--surface)] opacity-60"
               : "border-[var(--border)] bg-[var(--surface)]"
           )}
@@ -307,19 +356,19 @@ function ActionsTab({
             onClick={() => onToggle(a.id, a.status)}
             className={cn(
               "w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors",
-              a.status === "COMPLETED"
+              isDone(a.status)
                 ? "bg-[var(--positive)] border-[var(--positive)]"
                 : "border-[var(--brand)] hover:bg-[var(--brand-dim)]"
             )}
           >
-            {a.status === "COMPLETED" && (
+            {isDone(a.status) && (
               <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
                 <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             )}
           </button>
           <div className="flex-1 min-w-0">
-            <p className={cn("text-sm font-medium", a.status === "COMPLETED" ? "line-through text-[var(--text-muted)]" : "text-[var(--foreground)]")}>
+            <p className={cn("text-sm font-medium", isDone(a.status) ? "line-through text-[var(--text-muted)]" : "text-[var(--foreground)]")}>
               {a.title}
             </p>
             {a.description && (

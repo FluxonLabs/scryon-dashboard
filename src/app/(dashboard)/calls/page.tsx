@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { useCalls } from "@/hooks/useCalls";
+import { useContacts } from "@/hooks/useContacts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { formatDistanceToNow, formatDuration } from "@/lib/date";
-import { Phone, ArrowRight, RefreshCw } from "lucide-react";
+import { Phone, ArrowRight, RefreshCw, UserCircle } from "lucide-react";
 import type { CallStatus } from "@/types";
 import { useState } from "react";
 
@@ -17,7 +18,10 @@ const STATUS_FILTERS: { label: string; value: CallStatus | "ALL" }[] = [
 
 export default function CallsPage() {
   const { items, loading, error, hasMore, loadMore, refresh } = useCalls(30);
+  const { contacts } = useContacts();
   const [filter, setFilter] = useState<CallStatus | "ALL">("ALL");
+
+  const contactById = Object.fromEntries(contacts.map((c) => [c.id, c]));
 
   const filtered = filter === "ALL" ? items : items.filter((c) => c.status === filter);
 
@@ -87,7 +91,13 @@ export default function CallsPage() {
                   <p className="text-sm font-semibold text-[var(--foreground)] truncate">
                     {call.title ?? call.originalFileName ?? "Untitled call"}
                   </p>
-                  <div className="flex items-center gap-2 mt-0.5">
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    {call.scryonContactId && contactById[call.scryonContactId] && (
+                      <span className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-[var(--brand-dim)] text-[var(--brand-light)] border border-[var(--brand)]/20">
+                        <UserCircle size={10} />
+                        {contactById[call.scryonContactId].name}
+                      </span>
+                    )}
                     {call.shortSummary && (
                       <span className="text-xs text-[var(--text-muted)] truncate max-w-xs">{call.shortSummary}</span>
                     )}
