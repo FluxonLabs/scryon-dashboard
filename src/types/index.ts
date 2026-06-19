@@ -44,6 +44,8 @@ export interface CallDetail {
   contactId: string | null;
   organization: string | null;
   scryonContactId?: string | null;
+  shortSummary?: string | null;
+  notes?: string | null;
 }
 
 // ─── Transcript ───────────────────────────────────────────────────────────────

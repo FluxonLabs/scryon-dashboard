@@ -11,10 +11,12 @@ import { StatusBadge, SentimentBadge, PriorityDot } from "@/components/StatusBad
 import { SentimentComparisonChart, SentimentProgressionChart, ToneRadarChart } from "@/components/charts/SentimentChart";
 import { DiscussionPhaseChart, ActionIntentChart } from "@/components/charts/AnalysisCharts";
 import { ContactSelectorModal } from "@/components/ContactSelectorModal";
+import { EditCallFieldModal } from "@/components/EditCallFieldModal";
+import type { EditableField } from "@/components/EditCallFieldModal";
 import { formatDate, formatDuration } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
-import { ArrowLeft, AlertCircle, UserCircle, UserPlus } from "lucide-react";
+import { ArrowLeft, AlertCircle, UserCircle, UserPlus, Pencil } from "lucide-react";
 import type { SpeakerRole } from "@/types";
 
 type Tab = "transcript" | "analysis" | "actions";
@@ -25,6 +27,7 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
   const { call, setCall, loading: callLoading } = useCall(id);
   const { contacts, loading: contactsLoading } = useContacts();
   const [showContactPicker, setShowContactPicker] = useState(false);
+  const [editField, setEditField] = useState<EditableField | null>(null);
   const { transcript, loading: txLoading } = useTranscript(id);
   const { analysis, loading: anLoading } = useAnalysis(id);
   const { items: allActions, toggle } = useActions();
@@ -37,6 +40,22 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
     const res = await apiFetch(`/api/calls/${id}/contact`, {
       method: "PATCH",
       body: JSON.stringify({ contactId }),
+    });
+    const updated = await res.json();
+    setCall(updated);
+  }
+
+  async function handleSaveField(value: string) {
+    if (!editField) return;
+    const body: Record<string, string | null> = {
+      title: null,
+      summary: null,
+      notes: null,
+    };
+    body[editField === "summary" ? "summary" : editField] = value || null;
+    const res = await apiFetch(`/api/calls/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
     });
     const updated = await res.json();
     setCall(updated);
@@ -58,9 +77,20 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
           <ArrowLeft size={18} />
         </Link>
         <div className="flex-1 min-w-0">
-          <h1 className="text-base font-bold text-[var(--foreground)] truncate">
-            {call?.title ?? call?.contactName ?? "Untitled call"}
-          </h1>
+          <div className="flex items-center gap-1.5 group">
+            <h1 className="text-base font-bold text-[var(--foreground)] truncate">
+              {call?.title ?? call?.contactName ?? "Untitled call"}
+            </h1>
+            {call && (
+              <button
+                onClick={() => setEditField("title")}
+                className="p-1 rounded text-[var(--text-muted)] opacity-0 group-hover:opacity-100 hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-all shrink-0"
+                aria-label="Edit title"
+              >
+                <Pencil size={12} />
+              </button>
+            )}
+          </div>
           <div className="flex items-center gap-2 mt-0.5 flex-wrap">
             {call?.contactName && call?.title && (
               <span className="text-xs text-[var(--text-muted)]">{call.contactName}</span>
@@ -126,7 +156,15 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
           <TranscriptTab loading={txLoading} transcript={transcript} isCompleted={isCompleted} />
         )}
         {tab === "analysis" && (
-          <AnalysisTab loading={anLoading} analysis={analysis} isCompleted={isCompleted} />
+          <AnalysisTab
+            loading={anLoading}
+            analysis={analysis}
+            isCompleted={isCompleted}
+            userSummary={call?.shortSummary ?? null}
+            userNotes={call?.notes ?? null}
+            onEditSummary={() => setEditField("summary")}
+            onEditNotes={() => setEditField("notes")}
+          />
         )}
         {tab === "actions" && (
           <ActionsTab actions={callActions} onToggle={toggle} />
@@ -141,6 +179,20 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
           currentContactId={call?.scryonContactId}
           onPick={handleAssignContact}
           onClose={() => setShowContactPicker(false)}
+        />
+      )}
+
+      {/* Edit field modal */}
+      {editField && (
+        <EditCallFieldModal
+          field={editField}
+          initialValue={
+            editField === "title" ? (call?.title ?? "") :
+            editField === "summary" ? (call?.shortSummary ?? "") :
+            (call?.notes ?? "")
+          }
+          onSave={handleSaveField}
+          onClose={() => setEditField(null)}
         />
       )}
     </div>
@@ -179,19 +231,83 @@ function TranscriptTab({ loading, transcript, isCompleted }: {
 
 // ─── Analysis Tab ─────────────────────────────────────────────────────────────
 
-function AnalysisTab({ loading, analysis, isCompleted }: {
+function EditableSection({
+  title,
+  value,
+  placeholder,
+  onEdit,
+}: {
+  title: string;
+  value: string | null | undefined;
+  placeholder: string;
+  onEdit: () => void;
+}) {
+  return (
+    <div className="p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)]">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">{title}</h3>
+        <button
+          onClick={onEdit}
+          className="p-1 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors"
+          aria-label={`Edit ${title.toLowerCase()}`}
+        >
+          <Pencil size={12} />
+        </button>
+      </div>
+      {value ? (
+        <p className="text-sm text-[var(--text-secondary)] leading-relaxed whitespace-pre-wrap">{value}</p>
+      ) : (
+        <p className="text-sm text-[var(--text-muted)] italic">{placeholder}</p>
+      )}
+    </div>
+  );
+}
+
+function AnalysisTab({
+  loading,
+  analysis,
+  isCompleted,
+  userSummary,
+  userNotes,
+  onEditSummary,
+  onEditNotes,
+}: {
   loading: boolean;
   analysis: ReturnType<typeof useAnalysis>["analysis"];
   isCompleted: boolean;
+  userSummary: string | null;
+  userNotes: string | null;
+  onEditSummary: () => void;
+  onEditNotes: () => void;
 }) {
-  if (!isCompleted) return <NotReady message="Analysis not available yet — call is still processing." />;
-  if (loading) return <AnalysisSkeleton />;
-  if (!analysis) return <NotReady message="Analysis unavailable." />;
-
   return (
     <div className="max-w-2xl space-y-6">
-      {/* Summary */}
-      <Section title="Summary">
+      {/* User-editable summary and notes — always visible */}
+      <EditableSection
+        title="Summary"
+        value={userSummary}
+        placeholder="No summary yet. Click edit to add one."
+        onEdit={onEditSummary}
+      />
+      <EditableSection
+        title="Notes"
+        value={userNotes}
+        placeholder="No notes yet. Click edit to add yours."
+        onEdit={onEditNotes}
+      />
+
+      {/* AI Analysis */}
+      {!isCompleted ? (
+        <NotReady message="AI analysis not available yet — call is still processing." />
+      ) : loading ? (
+        <AnalysisSkeleton />
+      ) : !analysis ? (
+        <NotReady message="AI analysis unavailable." />
+      ) : (
+        <div className="space-y-6">
+
+      {/* AI Summary */}
+      <Section title="AI Summary">
         <p className="text-sm text-[var(--text-secondary)] leading-relaxed mb-4">
           {analysis.oneLineSummary}
         </p>
@@ -319,6 +435,8 @@ function AnalysisTab({ loading, analysis, isCompleted }: {
               <p key={i} className="text-xs text-[var(--warning)]">{w}</p>
             ))}
           </div>
+        </div>
+      )}
         </div>
       )}
     </div>
