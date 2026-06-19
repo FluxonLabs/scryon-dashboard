@@ -25,8 +25,9 @@ export function useActions() {
 
   useEffect(() => { load(); }, [load]);
 
-  const toggle = useCallback(async (id: string, current: "PENDING" | "COMPLETED") => {
-    const next = current === "PENDING" ? "COMPLETED" : "PENDING";
+  const toggle = useCallback(async (id: string, current: ActionItem["status"]) => {
+    const isDone = current === "COMPLETED" || current === "DONE" || current === "DISMISSED";
+    const next: ActionItem["status"] = isDone ? "PENDING" : "COMPLETED";
     // Optimistic update
     setItems((prev) =>
       prev.map((a) => (a.id === id ? { ...a, status: next } : a))

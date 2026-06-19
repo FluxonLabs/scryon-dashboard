@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Phone,
   CheckSquare,
+  Users,
   Settings,
   LogOut,
   Menu,
@@ -19,10 +20,11 @@ import {
 } from "lucide-react";
 
 const NAV = [
-  { href: "/",        icon: LayoutDashboard, label: "Dashboard" },
-  { href: "/calls",   icon: Phone,           label: "Calls" },
-  { href: "/actions", icon: CheckSquare,     label: "Actions" },
-  { href: "/settings", icon: Settings,       label: "Settings" },
+  { href: "/",         icon: LayoutDashboard, label: "Dashboard" },
+  { href: "/calls",    icon: Phone,           label: "Calls" },
+  { href: "/actions",  icon: CheckSquare,     label: "Actions" },
+  { href: "/contacts", icon: Users,           label: "Contacts" },
+  { href: "/settings", icon: Settings,        label: "Settings" },
 ];
 
 export function Sidebar() {

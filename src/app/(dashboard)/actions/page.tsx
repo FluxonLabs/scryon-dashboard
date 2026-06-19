@@ -12,8 +12,9 @@ export default function ActionsPage() {
   const { items, loading, error, toggle } = useActions();
   const [view, setView] = useState<View>("pending");
 
-  const pending = items.filter((a) => a.status === "PENDING");
-  const completed = items.filter((a) => a.status === "COMPLETED");
+  const isDone = (s: string) => s === "COMPLETED" || s === "DONE" || s === "DISMISSED";
+  const pending = items.filter((a) => !isDone(a.status));
+  const completed = items.filter((a) => isDone(a.status));
   const shown = view === "pending" ? pending : view === "completed" ? completed : items;
 
   return (
@@ -70,7 +71,7 @@ export default function ActionsPage() {
               key={action.id}
               className={cn(
                 "flex items-start gap-3 p-4 rounded-xl border transition-colors",
-                action.status === "COMPLETED"
+                isDone(action.status)
                   ? "border-[var(--border-subtle)] bg-[var(--surface)] opacity-60"
                   : "border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-subtle)]"
               )}
@@ -80,12 +81,12 @@ export default function ActionsPage() {
                 onClick={() => toggle(action.id, action.status)}
                 className={cn(
                   "w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors",
-                  action.status === "COMPLETED"
+                  isDone(action.status)
                     ? "bg-[var(--positive)] border-[var(--positive)]"
                     : "border-[var(--border)] hover:border-[var(--brand)]"
                 )}
               >
-                {action.status === "COMPLETED" && (
+                {isDone(action.status) && (
                   <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
                     <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
@@ -96,7 +97,7 @@ export default function ActionsPage() {
               <div className="flex-1 min-w-0">
                 <p className={cn(
                   "text-sm font-medium",
-                  action.status === "COMPLETED" ? "line-through text-[var(--text-muted)]" : "text-[var(--foreground)]"
+                  isDone(action.status) ? "line-through text-[var(--text-muted)]" : "text-[var(--foreground)]"
                 )}>
                   {action.title}
                 </p>
@@ -107,11 +108,11 @@ export default function ActionsPage() {
                   {action.dueDate && (
                     <span className={cn(
                       "text-xs",
-                      isOverdue(action.dueDate) && action.status === "PENDING"
+                      isOverdue(action.dueDate) && !isDone(action.status)
                         ? "text-[var(--negative)] font-medium"
                         : "text-[var(--text-muted)]"
                     )}>
-                      {isOverdue(action.dueDate) && action.status === "PENDING" ? "Overdue · " : "Due "}{action.dueDate}
+                      {isOverdue(action.dueDate) && !isDone(action.status) ? "Overdue · " : "Due "}{action.dueDate}
                     </span>
                   )}
                   {action.intent && action.intent !== "none" && (

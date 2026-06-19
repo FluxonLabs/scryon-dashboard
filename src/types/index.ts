@@ -1,3 +1,15 @@
+// ─── Contacts ────────────────────────────────────────────────────────────────
+
+export interface Contact {
+  id: string;
+  name: string;
+  phoneNumber: string | null;
+  email: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+}
+
 // ─── Calls ───────────────────────────────────────────────────────────────────
 
 export type CallStatus = "QUEUED" | "TRANSCRIBING" | "ANALYZING" | "COMPLETED" | "FAILED";
@@ -13,6 +25,7 @@ export interface CallSummary {
   createdAt: string;
   shortSummary: string | null;
   tags: string[] | null;
+  scryonContactId?: string | null;
 }
 
 export interface CallDetail {
@@ -30,6 +43,7 @@ export interface CallDetail {
   direction: CallDirection | null;
   contactId: string | null;
   organization: string | null;
+  scryonContactId?: string | null;
 }
 
 // ─── Transcript ───────────────────────────────────────────────────────────────
@@ -143,7 +157,7 @@ export interface ActionItem {
   title: string;
   description: string | null;
   dueDate: string | null;
-  status: "PENDING" | "COMPLETED";
+  status: "PENDING" | "COMPLETED" | "OPEN" | "IN_PROGRESS" | "DONE" | "DISMISSED";
   ownerDisplayName: string | null;
   ownerRole: SpeakerRole;
   intent: string | null;
