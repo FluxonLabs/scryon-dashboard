@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { apiFetch } from "@/lib/api";
-import type { ActionItem } from "@/types";
+import type { ActionItem, ActionItemInput } from "@/types";
 
 export function useActions() {
   const [items, setItems] = useState<ActionItem[]>([]);
@@ -28,22 +28,49 @@ export function useActions() {
   const toggle = useCallback(async (id: string, current: ActionItem["status"]) => {
     const isDone = current === "COMPLETED" || current === "DONE" || current === "DISMISSED";
     const next: ActionItem["status"] = isDone ? "PENDING" : "COMPLETED";
-    // Optimistic update
-    setItems((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: next } : a))
-    );
+    setItems((prev) => prev.map((a) => (a.id === id ? { ...a, status: next } : a)));
     try {
       await apiFetch(`/api/actions/${id}`, {
         method: "PATCH",
         body: JSON.stringify({ status: next }),
       });
     } catch {
-      // Rollback on failure
-      setItems((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, status: current } : a))
-      );
+      setItems((prev) => prev.map((a) => (a.id === id ? { ...a, status: current } : a)));
     }
   }, []);
 
-  return { items, loading, error, toggle, refresh: load };
+  const createAction = useCallback(async (callId: string, data: ActionItemInput): Promise<ActionItem> => {
+    const res = await apiFetch(`/api/calls/${callId}/action-items`, {
+      method: "POST",
+      body: JSON.stringify(data),
+    });
+    const created: ActionItem = await res.json();
+    setItems((prev) => [created, ...prev]);
+    return created;
+  }, []);
+
+  const updateAction = useCallback(async (id: string, data: ActionItemInput): Promise<ActionItem> => {
+    const current = items.find((a) => a.id === id);
+    const body = {
+      title: data.title,
+      description: data.description ?? null,
+      dueDate: data.dueDate ?? null,
+      priority: data.priority ?? null,
+      status: data.status ?? current?.status ?? "OPEN",
+    };
+    const res = await apiFetch(`/api/action-items/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+    const updated: ActionItem = await res.json();
+    setItems((prev) => prev.map((a) => (a.id === id ? updated : a)));
+    return updated;
+  }, [items]);
+
+  const deleteAction = useCallback(async (id: string): Promise<void> => {
+    await apiFetch(`/api/action-items/${id}`, { method: "DELETE" });
+    setItems((prev) => prev.filter((a) => a.id !== id));
+  }, []);
+
+  return { items, loading, error, toggle, createAction, updateAction, deleteAction, refresh: load };
 }

@@ -12,12 +12,13 @@ import { SentimentComparisonChart, SentimentProgressionChart, ToneRadarChart } f
 import { DiscussionPhaseChart, ActionIntentChart } from "@/components/charts/AnalysisCharts";
 import { ContactSelectorModal } from "@/components/ContactSelectorModal";
 import { EditCallFieldModal } from "@/components/EditCallFieldModal";
+import { ActionItemFormModal } from "@/components/ActionItemFormModal";
 import type { EditableField } from "@/components/EditCallFieldModal";
 import { formatDate, formatDuration } from "@/lib/date";
 import { cn } from "@/lib/utils";
 import { apiFetch } from "@/lib/api";
-import { ArrowLeft, AlertCircle, UserCircle, UserPlus, Pencil } from "lucide-react";
-import type { SpeakerRole } from "@/types";
+import { ArrowLeft, AlertCircle, UserCircle, UserPlus, Pencil, Plus, Trash2, Loader2 } from "lucide-react";
+import type { ActionItem, SpeakerRole } from "@/types";
 
 type Tab = "transcript" | "analysis" | "actions";
 
@@ -30,7 +31,10 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
   const [editField, setEditField] = useState<EditableField | null>(null);
   const { transcript, loading: txLoading } = useTranscript(id);
   const { analysis, loading: anLoading } = useAnalysis(id);
-  const { items: allActions, toggle } = useActions();
+  const { items: allActions, toggle, createAction, updateAction, deleteAction } = useActions();
+  const [showActionForm, setShowActionForm] = useState(false);
+  const [editAction, setEditAction] = useState<ActionItem | null>(null);
+  const [deletingActionId, setDeletingActionId] = useState<string | null>(null);
 
   const assignedContact = call?.scryonContactId
     ? contacts.find((c) => c.id === call.scryonContactId) ?? null
@@ -167,7 +171,17 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
           />
         )}
         {tab === "actions" && (
-          <ActionsTab actions={callActions} onToggle={toggle} />
+          <ActionsTab
+            actions={callActions}
+            onToggle={toggle}
+            onAdd={() => { setEditAction(null); setShowActionForm(true); }}
+            onEdit={(a) => { setEditAction(a); setShowActionForm(true); }}
+            onDelete={async (id) => {
+              setDeletingActionId(id);
+              try { await deleteAction(id); } finally { setDeletingActionId(null); }
+            }}
+            deletingId={deletingActionId}
+          />
         )}
       </div>
 
@@ -193,6 +207,25 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
           }
           onSave={handleSaveField}
           onClose={() => setEditField(null)}
+        />
+      )}
+
+      {/* Action item create / edit modal */}
+      {showActionForm && (
+        <ActionItemFormModal
+          item={editAction}
+          lockedCallId={id}
+          lockedCallTitle={call?.title ?? call?.contactName ?? undefined}
+          onSave={async (callId, data) => {
+            if (editAction) {
+              await updateAction(editAction.id, data);
+            } else {
+              await createAction(callId, data);
+            }
+            setShowActionForm(false);
+            setEditAction(null);
+          }}
+          onClose={() => { setShowActionForm(false); setEditAction(null); }}
         />
       )}
     </div>
@@ -448,63 +481,153 @@ function AnalysisTab({
 function ActionsTab({
   actions,
   onToggle,
+  onAdd,
+  onEdit,
+  onDelete,
+  deletingId,
 }: {
-  actions: ReturnType<typeof useActions>["items"];
-  onToggle: ReturnType<typeof useActions>["toggle"];
+  actions: ActionItem[];
+  onToggle: (id: string, status: ActionItem["status"]) => void;
+  onAdd: () => void;
+  onEdit: (a: ActionItem) => void;
+  onDelete: (id: string) => Promise<void>;
+  deletingId: string | null;
 }) {
-  if (actions.length === 0) {
-    return <NotReady message="No action items found for this call." />;
-  }
-
   const isDone = (s: string) => s === "COMPLETED" || s === "DONE" || s === "DISMISSED";
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   return (
     <div className="max-w-2xl space-y-3">
-      {actions.map((a) => (
-        <div
-          key={a.id}
-          className={cn(
-            "flex items-start gap-3 p-4 rounded-xl border transition-colors",
-            isDone(a.status)
-              ? "border-[var(--border-subtle)] bg-[var(--surface)] opacity-60"
-              : "border-[var(--border)] bg-[var(--surface)]"
-          )}
+      {/* Header with Add button */}
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-xs text-[var(--text-muted)]">
+          {actions.filter((a) => !isDone(a.status)).length} open · {actions.filter((a) => isDone(a.status)).length} done
+        </p>
+        <button
+          onClick={onAdd}
+          className="flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg bg-[var(--brand)] text-white hover:opacity-90 transition-opacity"
         >
-          <button
-            onClick={() => onToggle(a.id, a.status)}
-            className={cn(
-              "w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors",
-              isDone(a.status)
-                ? "bg-[var(--positive)] border-[var(--positive)]"
-                : "border-[var(--brand)] hover:bg-[var(--brand-dim)]"
-            )}
-          >
-            {isDone(a.status) && (
-              <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
-                <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            )}
-          </button>
-          <div className="flex-1 min-w-0">
-            <p className={cn("text-sm font-medium", isDone(a.status) ? "line-through text-[var(--text-muted)]" : "text-[var(--foreground)]")}>
-              {a.title}
-            </p>
-            {a.description && (
-              <p className="text-xs text-[var(--text-muted)] mt-1">{a.description}</p>
-            )}
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              {a.dueDate && (
-                <span className="text-xs text-[var(--text-muted)]">Due {a.dueDate}</span>
-              )}
-              {a.intent && a.intent !== "none" && (
-                <span className="text-xs px-2 py-0.5 rounded bg-[var(--surface-2)] border border-[var(--border-subtle)] text-[var(--text-muted)] capitalize">
-                  {a.intent}
-                </span>
-              )}
-            </div>
-          </div>
+          <Plus size={12} />
+          Add task
+        </button>
+      </div>
+
+      {actions.length === 0 ? (
+        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-10 text-center">
+          <p className="text-sm font-medium text-[var(--foreground)] mb-1">No tasks yet</p>
+          <p className="text-xs text-[var(--text-muted)]">Add a task to track follow-ups for this call.</p>
         </div>
-      ))}
+      ) : (
+        actions.map((a) => {
+          const done = isDone(a.status);
+          const overdue = !done && a.dueDate && new Date(a.dueDate) < new Date(new Date().toDateString());
+          return (
+            <div
+              key={a.id}
+              className={cn(
+                "group flex items-start gap-3 p-4 rounded-xl border transition-colors",
+                done
+                  ? "border-[var(--border-subtle)] bg-[var(--surface)] opacity-60"
+                  : "border-[var(--border)] bg-[var(--surface)]"
+              )}
+            >
+              <button
+                onClick={() => onToggle(a.id, a.status)}
+                className={cn(
+                  "w-5 h-5 rounded border flex-shrink-0 mt-0.5 flex items-center justify-center transition-colors",
+                  done
+                    ? "bg-[var(--positive)] border-[var(--positive)]"
+                    : "border-[var(--brand)] hover:bg-[var(--brand-dim)]"
+                )}
+              >
+                {done && (
+                  <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                    <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                )}
+              </button>
+
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className={cn("text-sm font-medium", done ? "line-through text-[var(--text-muted)]" : "text-[var(--foreground)]")}>
+                    {a.title}
+                  </p>
+                  {a.priority && (
+                    <span className={cn(
+                      "text-[10px] font-semibold px-1.5 py-0.5 rounded border",
+                      a.priority === "HIGH" ? "bg-[var(--negative-dim)] text-[var(--negative)] border-[var(--negative)]/30" :
+                      a.priority === "MEDIUM" ? "bg-[var(--warning-dim)] text-[var(--warning)] border-[var(--warning)]/30" :
+                      "bg-[var(--surface-2)] text-[var(--text-secondary)] border-[var(--border)]"
+                    )}>
+                      {a.priority.charAt(0) + a.priority.slice(1).toLowerCase()}
+                    </span>
+                  )}
+                  {a.source === "AI" && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--brand-dim)] text-[var(--brand-light)] border border-[var(--brand)]/20">
+                      AI
+                    </span>
+                  )}
+                </div>
+                {a.description && (
+                  <p className="text-xs text-[var(--text-muted)] mt-1">{a.description}</p>
+                )}
+                <div className="flex items-center gap-3 mt-2 flex-wrap">
+                  {a.dueDate && (
+                    <span className={cn(
+                      "text-xs",
+                      overdue ? "text-[var(--negative)] font-medium" : "text-[var(--text-muted)]"
+                    )}>
+                      {overdue ? "Overdue · " : "Due "}{a.dueDate}
+                    </span>
+                  )}
+                  {a.intent && a.intent !== "none" && (
+                    <span className="text-xs px-2 py-0.5 rounded bg-[var(--surface-2)] border border-[var(--border-subtle)] text-[var(--text-muted)] capitalize">
+                      {a.intent}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Row actions */}
+              <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+                <button
+                  onClick={() => onEdit(a)}
+                  className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface-2)] transition-colors"
+                  aria-label="Edit"
+                >
+                  <Pencil size={13} />
+                </button>
+                {deletingId === a.id ? (
+                  <span className="p-1.5"><Loader2 size={13} className="animate-spin text-[var(--text-muted)]" /></span>
+                ) : confirmDeleteId === a.id ? (
+                  <span className="flex items-center gap-1">
+                    <button
+                      onClick={async () => { await onDelete(a.id); setConfirmDeleteId(null); }}
+                      className="text-[10px] px-1.5 py-1 rounded bg-[var(--negative)] text-white font-medium"
+                    >
+                      Delete
+                    </button>
+                    <button
+                      onClick={() => setConfirmDeleteId(null)}
+                      className="text-[10px] px-1.5 py-1 rounded border border-[var(--border)] text-[var(--text-muted)]"
+                    >
+                      Cancel
+                    </button>
+                  </span>
+                ) : (
+                  <button
+                    onClick={() => setConfirmDeleteId(a.id)}
+                    className="p-1.5 rounded text-[var(--text-muted)] hover:text-[var(--negative)] hover:bg-[var(--negative-dim)] transition-colors"
+                    aria-label="Delete"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                )}
+              </div>
+            </div>
+          );
+        })
+      )}
     </div>
   );
 }
