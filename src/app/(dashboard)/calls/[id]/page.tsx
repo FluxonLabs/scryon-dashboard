@@ -345,14 +345,23 @@ function AnalysisTab({
           {analysis.oneLineSummary}
         </p>
         {analysis.executiveSummaryBullets?.length > 0 && (
-          <ul className="space-y-2 mb-4">
-            {analysis.executiveSummaryBullets.map((b, i) => (
-              <li key={i} className="flex gap-3 text-sm">
-                <span className={cn("mt-1.5 w-1.5 h-1.5 rounded-full shrink-0", importanceColor(b.importance))} />
-                <span className="text-[var(--text-secondary)] leading-relaxed">{b.text}</span>
-              </li>
+          <div className="space-y-5 mb-4">
+            {analysis.executiveSummaryBullets.map((section, i) => (
+              <div key={i}>
+                <div className="flex items-baseline justify-between gap-2 mb-1.5">
+                  <h4 className="text-sm font-semibold text-[var(--foreground)]">{section.header}</h4>
+                  {section.startTimestamp && (
+                    <span className="text-xs text-[var(--text-muted)] shrink-0">{section.startTimestamp}</span>
+                  )}
+                </div>
+                <div className="space-y-1.5">
+                  {section.paragraphs.map((para, j) => (
+                    <p key={j} className="text-sm text-[var(--text-secondary)] leading-relaxed">{para}</p>
+                  ))}
+                </div>
+              </div>
             ))}
-          </ul>
+          </div>
         )}
         {analysis.conversationOutcome && (
           <div className="p-3 rounded-lg bg-[var(--brand-dim)] border border-[var(--brand)]/20">
@@ -683,11 +692,6 @@ function speakerColor(role: SpeakerRole) {
   return "text-[var(--text-muted)]";
 }
 
-function importanceColor(importance: "low" | "medium" | "high") {
-  if (importance === "high") return "bg-[var(--negative)]";
-  if (importance === "medium") return "bg-[var(--warning)]";
-  return "bg-[var(--text-muted)]";
-}
 
 function formatSeconds(s: number) {
   const m = Math.floor(s / 60);

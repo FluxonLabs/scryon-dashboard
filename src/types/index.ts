@@ -80,10 +80,9 @@ export interface Transcript {
 // ─── Analysis ────────────────────────────────────────────────────────────────
 
 export interface SummaryBullet {
-  text: string;
-  category: string;
-  importance: "low" | "medium" | "high";
-  sourceSegmentIds: string[];
+  header: string;
+  startTimestamp: string | null;
+  paragraphs: string[];
 }
 
 export interface DiscussionPoint {
