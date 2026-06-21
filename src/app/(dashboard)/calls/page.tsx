@@ -4,8 +4,9 @@ import Link from "next/link";
 import { useCalls } from "@/hooks/useCalls";
 import { useContacts } from "@/hooks/useContacts";
 import { StatusBadge } from "@/components/StatusBadge";
+import { UploadCallModal } from "@/components/UploadCallModal";
 import { formatDistanceToNow, formatDuration } from "@/lib/date";
-import { Phone, ArrowRight, RefreshCw, UserCircle } from "lucide-react";
+import { Phone, ArrowRight, RefreshCw, UserCircle, Upload } from "lucide-react";
 import type { CallStatus } from "@/types";
 import { useState } from "react";
 
@@ -20,6 +21,7 @@ export default function CallsPage() {
   const { items, loading, error, hasMore, loadMore, refresh } = useCalls(30);
   const { contacts } = useContacts();
   const [filter, setFilter] = useState<CallStatus | "ALL">("ALL");
+  const [showUpload, setShowUpload] = useState(false);
 
   const contactById = Object.fromEntries(contacts.map((c) => [c.id, c]));
 
@@ -27,6 +29,12 @@ export default function CallsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
+      {showUpload && (
+        <UploadCallModal
+          onClose={() => setShowUpload(false)}
+          onUploaded={refresh}
+        />
+      )}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-[var(--foreground)]">Calls</h1>
@@ -34,12 +42,21 @@ export default function CallsPage() {
             {loading ? "Loading…" : `${items.length} total`}
           </p>
         </div>
-        <button
-          onClick={refresh}
-          className="p-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--brand)] transition-colors"
-        >
-          <RefreshCw size={15} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowUpload(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand)] text-white text-xs font-medium hover:opacity-90 transition-opacity"
+          >
+            <Upload size={13} />
+            Upload Recording
+          </button>
+          <button
+            onClick={refresh}
+            className="p-2 rounded-lg border border-[var(--border)] text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--brand)] transition-colors"
+          >
+            <RefreshCw size={15} />
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -72,7 +89,7 @@ export default function CallsPage() {
           <Phone size={32} className="text-[var(--text-muted)] mx-auto mb-3" />
           <p className="text-sm font-medium text-[var(--foreground)] mb-1">No calls found</p>
           <p className="text-xs text-[var(--text-muted)]">
-            {filter !== "ALL" ? "Try changing the filter." : "Record a call in the Scryon app to get started."}
+            {filter !== "ALL" ? "Try changing the filter." : "Upload a recording above, or use the Scryon Android app to get started."}
           </p>
         </div>
       ) : (
