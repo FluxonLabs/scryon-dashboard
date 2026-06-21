@@ -6,7 +6,7 @@ import { useContacts } from "@/hooks/useContacts";
 import { StatusBadge } from "@/components/StatusBadge";
 import { UploadCallModal } from "@/components/UploadCallModal";
 import { formatDistanceToNow, formatDuration } from "@/lib/date";
-import { Phone, ArrowRight, RefreshCw, UserCircle, Upload } from "lucide-react";
+import { Phone, ArrowRight, RefreshCw, UserCircle, Upload, Search, X } from "lucide-react";
 import type { CallStatus } from "@/types";
 import { useState } from "react";
 
@@ -21,11 +21,25 @@ export default function CallsPage() {
   const { items, loading, error, hasMore, loadMore, refresh } = useCalls(30);
   const { contacts } = useContacts();
   const [filter, setFilter] = useState<CallStatus | "ALL">("ALL");
+  const [query, setQuery] = useState("");
   const [showUpload, setShowUpload] = useState(false);
 
   const contactById = Object.fromEntries(contacts.map((c) => [c.id, c]));
 
-  const filtered = filter === "ALL" ? items : items.filter((c) => c.status === filter);
+  const q = query.trim().toLowerCase();
+  const filtered = items
+    .filter((c) => filter === "ALL" || c.status === filter)
+    .filter((c) => {
+      if (!q) return true;
+      const contact = c.scryonContactId ? contactById[c.scryonContactId]?.name ?? "" : "";
+      return (
+        (c.title ?? "").toLowerCase().includes(q) ||
+        (c.originalFileName ?? "").toLowerCase().includes(q) ||
+        (c.shortSummary ?? "").toLowerCase().includes(q) ||
+        contact.toLowerCase().includes(q) ||
+        (c.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      );
+    });
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -59,6 +73,26 @@ export default function CallsPage() {
         </div>
       </div>
 
+      {/* Search */}
+      <div className="relative mb-4">
+        <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search by title, contact, summary, or tag…"
+          className="w-full pl-9 pr-9 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] transition-colors"
+        />
+        {query && (
+          <button
+            onClick={() => setQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+          >
+            <X size={13} />
+          </button>
+        )}
+      </div>
+
       {/* Filters */}
       <div className="flex gap-2 mb-6 flex-wrap">
         {STATUS_FILTERS.map((f) => (
@@ -89,7 +123,7 @@ export default function CallsPage() {
           <Phone size={32} className="text-[var(--text-muted)] mx-auto mb-3" />
           <p className="text-sm font-medium text-[var(--foreground)] mb-1">No calls found</p>
           <p className="text-xs text-[var(--text-muted)]">
-            {filter !== "ALL" ? "Try changing the filter." : "Upload a recording above, or use the Scryon Android app to get started."}
+            {q ? `No calls match "${query}".` : filter !== "ALL" ? "Try changing the filter." : "Upload a recording above, or use the Scryon Android app to get started."}
           </p>
         </div>
       ) : (

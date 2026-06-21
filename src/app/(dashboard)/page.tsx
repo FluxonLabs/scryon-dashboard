@@ -7,7 +7,7 @@ import { StatusBadge } from "@/components/StatusBadge";
 import { UploadCallModal } from "@/components/UploadCallModal";
 import { CallActivityChart, CallStatusPieChart, CallHeatmap } from "@/components/charts/CallActivityChart";
 import { useAuth } from "@/context/AuthContext";
-import { Phone, CheckSquare, Clock, TrendingUp, ArrowRight, Upload } from "lucide-react";
+import { Phone, CheckSquare, Clock, TrendingUp, ArrowRight, Upload, Search, X } from "lucide-react";
 import { formatDistanceToNow } from "@/lib/date";
 import { useState } from "react";
 
@@ -16,12 +16,22 @@ export default function DashboardPage() {
   const { items: calls, loading: callsLoading, refresh } = useCalls(50);
   const { items: actions, loading: actionsLoading } = useActions();
   const [showUpload, setShowUpload] = useState(false);
+  const [query, setQuery] = useState("");
 
   const completed = calls.filter((c) => c.status === "COMPLETED");
   const pending = actions.filter((a) => a.status === "OPEN" || a.status === "IN_PROGRESS");
   const avgSentiment = null; // computed from analysis — requires per-call fetch, shown in Phase 3
 
-  const recentCalls = calls.slice(0, 5);
+  const q = query.trim().toLowerCase();
+  const searchedCalls = q
+    ? calls.filter((c) =>
+        (c.title ?? "").toLowerCase().includes(q) ||
+        (c.originalFileName ?? "").toLowerCase().includes(q) ||
+        (c.shortSummary ?? "").toLowerCase().includes(q) ||
+        (c.tags ?? []).some((t) => t.toLowerCase().includes(q))
+      )
+    : calls;
+  const recentCalls = q ? searchedCalls.slice(0, 10) : calls.slice(0, 5);
 
   const firstName = user?.displayName?.split(" ")[0] ?? "there";
 
@@ -111,22 +121,46 @@ export default function DashboardPage() {
 
       {/* Recent calls */}
       <div className="mb-8">
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-[var(--foreground)]">Recent Calls</h2>
-          <Link
-            href="/calls"
-            className="text-xs text-[var(--brand-light)] hover:underline flex items-center gap-1"
-          >
-            View all <ArrowRight size={12} />
-          </Link>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-[var(--foreground)]">
+            {q ? "Search Results" : "Recent Calls"}
+          </h2>
+          {!q && (
+            <Link
+              href="/calls"
+              className="text-xs text-[var(--brand-light)] hover:underline flex items-center gap-1"
+            >
+              View all <ArrowRight size={12} />
+            </Link>
+          )}
+        </div>
+
+        {/* Search bar */}
+        <div className="relative mb-4">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none" />
+          <input
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search calls by title, summary, or tag…"
+            className="w-full pl-9 pr-9 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)] transition-colors"
+          />
+          {query && (
+            <button
+              onClick={() => setQuery("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--foreground)] transition-colors"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
 
         {callsLoading ? (
           <SkeletonList rows={5} />
         ) : recentCalls.length === 0 ? (
           <EmptyState
-            title="No calls yet"
-            description="Open Scryon on your Android device to start transcribing calls."
+            title={q ? `No calls match "${query}"` : "No calls yet"}
+            description={q ? "Try a different search term." : "Open Scryon on your Android device to start transcribing calls."}
           />
         ) : (
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border-subtle)] overflow-hidden">
