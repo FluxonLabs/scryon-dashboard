@@ -4,15 +4,18 @@ import Link from "next/link";
 import { useCalls } from "@/hooks/useCalls";
 import { useActions } from "@/hooks/useActions";
 import { StatusBadge } from "@/components/StatusBadge";
+import { UploadCallModal } from "@/components/UploadCallModal";
 import { CallActivityChart, CallStatusPieChart, CallHeatmap } from "@/components/charts/CallActivityChart";
 import { useAuth } from "@/context/AuthContext";
-import { Phone, CheckSquare, Clock, TrendingUp, ArrowRight } from "lucide-react";
+import { Phone, CheckSquare, Clock, TrendingUp, ArrowRight, Upload } from "lucide-react";
 import { formatDistanceToNow } from "@/lib/date";
+import { useState } from "react";
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { items: calls, loading: callsLoading } = useCalls(50);
+  const { items: calls, loading: callsLoading, refresh } = useCalls(50);
   const { items: actions, loading: actionsLoading } = useActions();
+  const [showUpload, setShowUpload] = useState(false);
 
   const completed = calls.filter((c) => c.status === "COMPLETED");
   const pending = actions.filter((a) => a.status === "OPEN" || a.status === "IN_PROGRESS");
@@ -24,14 +27,30 @@ export default function DashboardPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
+      {showUpload && (
+        <UploadCallModal
+          onClose={() => setShowUpload(false)}
+          onUploaded={refresh}
+        />
+      )}
+
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-[var(--foreground)]">
-          Hello, {firstName} 👋
-        </h1>
-        <p className="text-sm text-[var(--text-secondary)] mt-1">
-          Here's what's happening with your calls.
-        </p>
+      <div className="flex items-start justify-between mb-8">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">
+            Hello, {firstName} 👋
+          </h1>
+          <p className="text-sm text-[var(--text-secondary)] mt-1">
+            Here's what's happening with your calls.
+          </p>
+        </div>
+        <button
+          onClick={() => setShowUpload(true)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--brand)] text-white text-xs font-medium hover:opacity-90 transition-opacity mt-1"
+        >
+          <Upload size={13} />
+          Upload Recording
+        </button>
       </div>
 
       {/* Stats */}
