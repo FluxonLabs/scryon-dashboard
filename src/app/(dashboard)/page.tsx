@@ -5,7 +5,7 @@ import { useCalls } from "@/hooks/useCalls";
 import { useActions } from "@/hooks/useActions";
 import { StatusBadge } from "@/components/StatusBadge";
 import { UploadCallModal } from "@/components/UploadCallModal";
-import { CallActivityChart, CallStatusPieChart, CallHeatmap } from "@/components/charts/CallActivityChart";
+import { CallActivityChart, ActionItemsChart } from "@/components/charts/CallActivityChart";
 import { useAuth } from "@/context/AuthContext";
 import { Phone, CheckSquare, Clock, TrendingUp, ArrowRight, Upload, Search, X } from "lucide-react";
 import { formatDistanceToNow } from "@/lib/date";
@@ -20,7 +20,6 @@ export default function DashboardPage() {
 
   const completed = calls.filter((c) => c.status === "COMPLETED");
   const pending = actions.filter((a) => a.status === "OPEN" || a.status === "IN_PROGRESS");
-  const avgSentiment = null; // computed from analysis — requires per-call fetch, shown in Phase 3
 
   const q = query.trim().toLowerCase();
   const searchedCalls = q
@@ -95,27 +94,11 @@ export default function DashboardPage() {
       {!callsLoading && calls.length > 0 && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
           <div className="lg:col-span-2 rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-            <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-              Call Activity — Last 14 Days
-            </h2>
             <CallActivityChart calls={calls} />
           </div>
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
-            <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-1">
-              By Status
-            </h2>
-            <CallStatusPieChart calls={calls} />
+            <ActionItemsChart items={actions} />
           </div>
-        </div>
-      )}
-
-      {/* Heatmap */}
-      {!callsLoading && calls.length > 0 && (
-        <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 mb-8">
-          <h2 className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
-            Call History
-          </h2>
-          <CallHeatmap calls={calls} />
         </div>
       )}
 
