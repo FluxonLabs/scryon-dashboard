@@ -6,6 +6,8 @@ import { useActions } from "@/hooks/useActions";
 import { StatusBadge } from "@/components/StatusBadge";
 import { UploadCallModal } from "@/components/UploadCallModal";
 import { CallActivityChart, ActionItemsChart } from "@/components/charts/CallActivityChart";
+import { SentimentDistributionChart, SentimentTrendChart, ToneProfileChart } from "@/components/charts/VibeCharts";
+import { useVibeAnalytics } from "@/hooks/useVibeAnalytics";
 import { useAuth } from "@/context/AuthContext";
 import { Phone, CheckSquare, Clock, TrendingUp, ArrowRight, Upload, Search, X } from "lucide-react";
 import { formatDistanceToNow } from "@/lib/date";
@@ -15,6 +17,7 @@ export default function DashboardPage() {
   const { user } = useAuth();
   const { items: calls, loading: callsLoading, refresh } = useCalls(50);
   const { items: actions, loading: actionsLoading } = useActions();
+  const { data: vibeData } = useVibeAnalytics(30);
   const [showUpload, setShowUpload] = useState(false);
   const [query, setQuery] = useState("");
 
@@ -98,6 +101,21 @@ export default function DashboardPage() {
           </div>
           <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
             <ActionItemsChart items={actions} />
+          </div>
+        </div>
+      )}
+
+      {/* Vibe analytics row */}
+      {vibeData && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <SentimentDistributionChart data={vibeData} />
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <SentimentTrendChart data={vibeData} />
+          </div>
+          <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4">
+            <ToneProfileChart data={vibeData} />
           </div>
         </div>
       )}
