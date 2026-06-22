@@ -116,6 +116,12 @@ export interface Sentiment {
   emotionalSignals?: string[];
 }
 
+export interface PartyTone {
+  overall?: string;
+  descriptors?: string[];
+  notes?: string;
+}
+
 export interface Tone {
   overall: string;
   descriptors: string[];
@@ -123,6 +129,10 @@ export interface Tone {
   energy: string;
   pace: string;
   notes: string;
+  byParty?: {
+    userTone?: PartyTone;
+    contactTone?: PartyTone;
+  } | null;
 }
 
 export interface AnalysisActionItem {

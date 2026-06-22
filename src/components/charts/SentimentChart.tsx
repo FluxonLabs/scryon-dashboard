@@ -1,140 +1,168 @@
 "use client";
 
-import {
-  RadarChart, Radar, PolarGrid, PolarAngleAxis,
-  ResponsiveContainer, BarChart, Bar, XAxis, YAxis,
-  CartesianGrid, Tooltip, Cell, LineChart, Line,
-  ReferenceLine,
-} from "recharts";
-import type { Sentiment, SentimentMoment } from "@/types";
+import type { Sentiment, Tone } from "@/types";
 
-// ─── Sentiment comparison bars ────────────────────────────────────────────────
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
-interface SentimentBarProps {
-  sentiment: Sentiment;
+function sentimentColor(overall: string | undefined) {
+  switch (overall?.toLowerCase()) {
+    case "positive":  return { bg: "bg-[var(--positive-dim)]", text: "text-[var(--positive)]",  dot: "bg-[var(--positive)]"  };
+    case "negative":  return { bg: "bg-[var(--negative-dim)]", text: "text-[var(--negative)]",  dot: "bg-[var(--negative)]"  };
+    case "mixed":     return { bg: "bg-[var(--warning-dim)]",  text: "text-[var(--warning)]",   dot: "bg-[var(--warning)]"   };
+    default:          return { bg: "bg-[var(--surface-2)]",    text: "text-[var(--text-muted)]", dot: "bg-[var(--text-muted)]" };
+  }
 }
 
-export function SentimentComparisonChart({ sentiment }: SentimentBarProps) {
-  const data = [
-    { name: "Overall", score: sentiment.score ?? 0 },
-    ...(sentiment.userSentiment?.score != null
-      ? [{ name: "You", score: sentiment.userSentiment.score }]
-      : []),
-    ...(sentiment.contactSentiment?.score != null
-      ? [{ name: "Contact", score: sentiment.contactSentiment.score }]
-      : []),
+function cap(s: string | undefined | null) {
+  if (!s) return "";
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
+// ─── Call Vibe panel ──────────────────────────────────────────────────────────
+
+interface CallVibePanelProps {
+  sentiment?: Sentiment | null;
+  tone?: Tone | null;
+}
+
+export function CallVibePanel({ sentiment, tone }: CallVibePanelProps) {
+  const overall = sentiment?.overall;
+  const col = sentimentColor(overall);
+
+  const toneTokens = [
+    tone?.overall,
+    tone?.formality,
+    tone?.energy ? `${cap(tone.energy)} energy` : null,
+    tone?.pace   ? `${cap(tone.pace)} pace`     : null,
+  ].filter(Boolean).map(cap);
+
+  const toneDescriptors = [
+    ...(tone?.descriptors ?? []),
   ];
 
   return (
-    <ResponsiveContainer width="100%" height={120}>
-      <BarChart data={data} layout="vertical" margin={{ left: 8, right: 32, top: 4, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
-        <XAxis type="number" domain={[-1, 1]} tickCount={5} tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-        <YAxis type="category" dataKey="name" tick={{ fontSize: 11, fill: "var(--text-secondary)" }} axisLine={false} tickLine={false} width={52} />
-        <ReferenceLine x={0} stroke="var(--border)" />
-        <Tooltip
-          formatter={(v) => { const n = Number(v); return [n > 0 ? `+${n.toFixed(2)}` : n.toFixed(2), "Score"]; }}
-          contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-          labelStyle={{ color: "var(--foreground)" }}
-        />
-        <Bar dataKey="score" radius={4} maxBarSize={20}>
-          {data.map((entry, i) => (
-            <Cell
-              key={i}
-              fill={
-                entry.score > 0.2
-                  ? "var(--positive)"
-                  : entry.score < -0.2
-                  ? "var(--negative)"
-                  : "var(--text-muted)"
-              }
-            />
-          ))}
-        </Bar>
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
+    <div className="space-y-5">
 
-// ─── Sentiment progression line ───────────────────────────────────────────────
+      {/* ── Overall sentiment pill + reason ─────────────────────────── */}
+      {sentiment && (
+        <div className="flex items-start gap-3">
+          <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold ${col.bg} ${col.text} shrink-0 mt-0.5`}>
+            {cap(overall) || "Unclear"}
+          </span>
+          {sentiment.reason && (
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">{sentiment.reason}</p>
+          )}
+        </div>
+      )}
 
-interface SentimentProgressionProps {
-  progression: SentimentMoment[];
-}
+      {/* ── You vs Contact ──────────────────────────────────────────── */}
+      {(sentiment?.userSentiment || sentiment?.contactSentiment) && (
+        <div className="grid grid-cols-2 gap-3">
+          {sentiment.userSentiment && (
+            <SpeakerVibeBox label="You" sentiment={sentiment.userSentiment.overall} notes={sentiment.userSentiment.notes} tone={tone?.byParty?.userTone} />
+          )}
+          {sentiment.contactSentiment && (
+            <SpeakerVibeBox label="Contact" sentiment={sentiment.contactSentiment.overall} notes={sentiment.contactSentiment.notes} tone={tone?.byParty?.contactTone} />
+          )}
+        </div>
+      )}
 
-export function SentimentProgressionChart({ progression }: SentimentProgressionProps) {
-  const data = progression.map((p) => ({
-    phase: p.phase.charAt(0).toUpperCase() + p.phase.slice(1),
-    note: p.note,
-    value: p.overall === "positive" ? 0.7 : p.overall === "negative" ? -0.7 : 0,
-  }));
-
-  return (
-    <ResponsiveContainer width="100%" height={120}>
-      <LineChart data={data} margin={{ left: 8, right: 8, top: 8, bottom: 4 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-        <XAxis dataKey="phase" tick={{ fontSize: 10, fill: "var(--text-muted)" }} axisLine={false} tickLine={false} />
-        <YAxis domain={[-1, 1]} hide />
-        <ReferenceLine y={0} stroke="var(--border)" />
-        <Tooltip
-          formatter={(_: unknown, __: unknown, props: { payload?: { note?: string } }) => [props.payload?.note ?? "", "Mood"]}
-          contentStyle={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, fontSize: 12 }}
-          labelStyle={{ color: "var(--foreground)" }}
-        />
-        <Line type="monotone" dataKey="value" stroke="var(--brand)" strokeWidth={2} dot={{ fill: "var(--brand)", r: 4 }} />
-      </LineChart>
-    </ResponsiveContainer>
-  );
-}
-
-// ─── Tone radar ───────────────────────────────────────────────────────────────
-
-const FORMALITY_MAP: Record<string, number> = { formal: 90, professional: 75, neutral: 55, casual: 35, informal: 20 };
-const ENERGY_MAP: Record<string, number> = { high: 90, energetic: 85, moderate: 55, calm: 35, low: 20 };
-const PACE_MAP: Record<string, number> = { fast: 90, brisk: 75, moderate: 55, slow: 30, deliberate: 40 };
-
-interface ToneRadarProps {
-  formality: string;
-  energy: string;
-  pace: string;
-  overall: string;
-}
-
-export function ToneRadarChart({ formality, energy, pace, overall }: ToneRadarProps) {
-  const data = [
-    { attr: "Formality", value: FORMALITY_MAP[formality.toLowerCase()] ?? 50 },
-    { attr: "Energy",    value: ENERGY_MAP[energy.toLowerCase()]    ?? 50 },
-    { attr: "Pace",      value: PACE_MAP[pace.toLowerCase()]         ?? 50 },
-  ];
-
-  return (
-    <div className="flex items-center gap-6">
-      <ResponsiveContainer width={160} height={140}>
-        <RadarChart cx="50%" cy="50%" outerRadius={55} data={data}>
-          <PolarGrid stroke="var(--border)" />
-          <PolarAngleAxis dataKey="attr" tick={{ fontSize: 10, fill: "var(--text-muted)" }} />
-          <Radar dataKey="value" stroke="var(--brand)" fill="var(--brand)" fillOpacity={0.25} strokeWidth={2} />
-        </RadarChart>
-      </ResponsiveContainer>
-      <div className="space-y-2 text-sm">
-        {data.map((d) => (
-          <div key={d.attr} className="flex items-center gap-3">
-            <span className="text-xs text-[var(--text-muted)] w-16">{d.attr}</span>
-            <div className="flex-1 h-1.5 rounded-full bg-[var(--surface-2)] w-24">
-              <div
-                className="h-full rounded-full bg-[var(--brand)]"
-                style={{ width: `${d.value}%` }}
-              />
-            </div>
-            <span className="text-xs text-[var(--text-secondary)] w-20 capitalize">
-              {d.attr === "Formality" ? formality : d.attr === "Energy" ? energy : pace}
-            </span>
+      {/* ── Mood progression timeline ────────────────────────────────── */}
+      {sentiment?.progression && sentiment.progression.length > 0 && (
+        <div>
+          <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Mood through the call</p>
+          <div className="flex items-start gap-0">
+            {sentiment.progression.map((p, i) => {
+              const pc = sentimentColor(p.overall);
+              return (
+                <div key={i} className="flex-1 flex flex-col items-center gap-1.5 group relative">
+                  {/* connector line before dot */}
+                  {i > 0 && (
+                    <div className="absolute left-0 top-[7px] w-1/2 h-px bg-[var(--border)]" />
+                  )}
+                  {i < sentiment.progression!.length - 1 && (
+                    <div className="absolute right-0 top-[7px] w-1/2 h-px bg-[var(--border)]" />
+                  )}
+                  <div className={`w-3.5 h-3.5 rounded-full z-10 ${pc.dot} ring-2 ring-[var(--surface)] shadow-sm`} title={p.note ?? ""} />
+                  <p className="text-[9px] text-[var(--text-muted)] capitalize text-center leading-tight">{p.phase}</p>
+                  {p.note && (
+                    <p className="text-[9px] text-[var(--text-secondary)] text-center leading-tight hidden group-hover:block absolute top-7 bg-[var(--surface)] border border-[var(--border)] rounded-lg px-2 py-1 z-20 w-28 shadow-lg">
+                      {p.note}
+                    </p>
+                  )}
+                </div>
+              );
+            })}
           </div>
-        ))}
-        <p className="text-xs text-[var(--text-muted)] pt-1">
-          Overall: <span className="text-[var(--foreground)] capitalize">{overall}</span>
+        </div>
+      )}
+
+      {/* ── Emotional signals ───────────────────────────────────────── */}
+      {sentiment?.emotionalSignals && sentiment.emotionalSignals.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          {sentiment.emotionalSignals.map((s) => (
+            <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--brand-dim)] border border-[var(--brand)]/20 text-[var(--brand-light)] capitalize">
+              {s}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* ── Tone footer ─────────────────────────────────────────────── */}
+      {(toneTokens.length > 0 || toneDescriptors.length > 0 || tone?.notes) && (
+        <div className="pt-3 border-t border-[var(--border-subtle)] space-y-2">
+          {toneTokens.length > 0 && (
+            <p className="text-xs text-[var(--text-secondary)]">
+              <span className="text-[var(--text-muted)] font-medium">Tone · </span>
+              {toneTokens.join(" · ")}
+            </p>
+          )}
+          {toneDescriptors.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {toneDescriptors.map((d) => (
+                <span key={d} className="text-[10px] px-2 py-0.5 rounded-full bg-[var(--surface-2)] border border-[var(--border)] text-[var(--text-secondary)] capitalize">
+                  {d}
+                </span>
+              ))}
+            </div>
+          )}
+          {tone?.notes && (
+            <p className="text-xs text-[var(--text-muted)] italic">{tone.notes}</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Speaker vibe box ─────────────────────────────────────────────────────────
+
+interface SpeakerVibeBoxProps {
+  label: string;
+  sentiment: string | undefined;
+  notes: string | undefined;
+  tone?: { overall?: string; descriptors?: string[]; notes?: string } | null;
+}
+
+function SpeakerVibeBox({ label, sentiment, notes, tone }: SpeakerVibeBoxProps) {
+  const col = sentimentColor(sentiment);
+  const toneDesc = tone?.descriptors?.length ? tone.descriptors.slice(0, 2).join(", ") : null;
+  const toneLabel = tone?.overall ? cap(tone.overall) : null;
+
+  return (
+    <div className="rounded-xl border border-[var(--border)] bg-[var(--surface-2)] p-3 space-y-1.5">
+      <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">{label}</p>
+      {sentiment && (
+        <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${col.bg} ${col.text}`}>
+          {cap(sentiment)}
+        </span>
+      )}
+      {notes && <p className="text-xs text-[var(--text-secondary)] leading-snug">{notes}</p>}
+      {(toneLabel || toneDesc) && (
+        <p className="text-[10px] text-[var(--text-muted)]">
+          {[toneLabel, toneDesc].filter(Boolean).join(" · ")}
         </p>
-      </div>
+      )}
     </div>
   );
 }

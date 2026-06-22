@@ -8,7 +8,7 @@ import { useTranscript } from "@/hooks/useTranscript";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useActions } from "@/hooks/useActions";
 import { StatusBadge, SentimentBadge, PriorityDot } from "@/components/StatusBadge";
-import { SentimentComparisonChart, SentimentProgressionChart, ToneRadarChart } from "@/components/charts/SentimentChart";
+import { CallVibePanel } from "@/components/charts/SentimentChart";
 import { DiscussionPhaseChart, ActionIntentChart } from "@/components/charts/AnalysisCharts";
 import { ContactSelectorModal } from "@/components/ContactSelectorModal";
 import { EditCallFieldModal } from "@/components/EditCallFieldModal";
@@ -371,75 +371,10 @@ function AnalysisTab({
         )}
       </Section>
 
-      {/* Sentiment */}
-      {analysis.sentiment && (
-        <Section title="Sentiment">
-          <SentimentComparisonChart sentiment={analysis.sentiment} />
-          <p className="text-xs text-[var(--text-muted)] mt-2 mb-3 italic">{analysis.sentiment.reason}</p>
-
-          {analysis.sentiment.progression && analysis.sentiment.progression.length > 0 && (
-            <div className="mb-3">
-              <p className="text-xs text-[var(--text-muted)] mb-2">Mood progression</p>
-              <SentimentProgressionChart progression={analysis.sentiment.progression} />
-            </div>
-          )}
-
-          {analysis.sentiment.emotionalSignals && analysis.sentiment.emotionalSignals.length > 0 && (
-            <div className="flex gap-2 flex-wrap mt-2">
-              {analysis.sentiment.emotionalSignals.map((s) => (
-                <span key={s} className="text-xs px-2 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)]">
-                  {s}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {(analysis.sentiment.userSentiment || analysis.sentiment.contactSentiment) && (
-            <div className="mt-3 grid grid-cols-2 gap-3">
-              {analysis.sentiment.userSentiment && (
-                <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-subtle)]">
-                  <p className="text-[10px] text-[var(--text-muted)] mb-1">You</p>
-                  <p className="text-sm font-semibold text-[var(--foreground)] capitalize">{analysis.sentiment.userSentiment.overall}</p>
-                  {analysis.sentiment.userSentiment.notes && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1">{analysis.sentiment.userSentiment.notes}</p>
-                  )}
-                </div>
-              )}
-              {analysis.sentiment.contactSentiment && (
-                <div className="p-3 rounded-lg bg-[var(--surface-2)] border border-[var(--border-subtle)]">
-                  <p className="text-[10px] text-[var(--text-muted)] mb-1">Contact</p>
-                  <p className="text-sm font-semibold text-[var(--foreground)] capitalize">{analysis.sentiment.contactSentiment.overall}</p>
-                  {analysis.sentiment.contactSentiment.notes && (
-                    <p className="text-xs text-[var(--text-muted)] mt-1">{analysis.sentiment.contactSentiment.notes}</p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-        </Section>
-      )}
-
-      {/* Tone */}
-      {analysis.tone && (
-        <Section title="Tone">
-          <ToneRadarChart
-            formality={analysis.tone.formality}
-            energy={analysis.tone.energy}
-            pace={analysis.tone.pace}
-            overall={analysis.tone.overall}
-          />
-          {analysis.tone.notes && (
-            <p className="text-xs text-[var(--text-muted)] mt-3 italic">{analysis.tone.notes}</p>
-          )}
-          {analysis.tone.descriptors?.length > 0 && (
-            <div className="flex gap-2 flex-wrap mt-3">
-              {analysis.tone.descriptors.map((d) => (
-                <span key={d} className="text-xs px-2 py-1 rounded-full bg-[var(--surface)] border border-[var(--border)] text-[var(--text-secondary)] capitalize">
-                  {d}
-                </span>
-              ))}
-            </div>
-          )}
+      {/* Call Vibe — sentiment + tone unified */}
+      {(analysis.sentiment || analysis.tone) && (
+        <Section title="Call Vibe">
+          <CallVibePanel sentiment={analysis.sentiment} tone={analysis.tone} />
         </Section>
       )}
 
@@ -654,29 +589,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function SentimentRow({ label, score, note }: { label: string; score: number | null; note?: string }) {
-  const pct = score !== null ? ((score + 1) / 2) * 100 : 50;
-  const color = score !== null
-    ? score > 0.2 ? "bg-[var(--positive)]" : score < -0.2 ? "bg-[var(--negative)]" : "bg-[var(--text-muted)]"
-    : "bg-[var(--text-muted)]";
-
-  return (
-    <div>
-      <div className="flex justify-between items-center mb-1">
-        <span className="text-xs text-[var(--text-secondary)]">{label}</span>
-        {score !== null && (
-          <span className={cn("text-xs font-semibold", score > 0.2 ? "text-[var(--positive)]" : score < -0.2 ? "text-[var(--negative)]" : "text-[var(--text-muted)]")}>
-            {score > 0 ? "+" : ""}{score.toFixed(2)}
-          </span>
-        )}
-      </div>
-      <div className="h-1.5 bg-[var(--surface-2)] rounded-full overflow-hidden">
-        <div className={cn("h-full rounded-full transition-all", color)} style={{ width: `${pct}%` }} />
-      </div>
-      {note && <p className="text-xs text-[var(--text-muted)] mt-1">{note}</p>}
-    </div>
-  );
-}
 
 function NotReady({ message }: { message: string }) {
   return (
