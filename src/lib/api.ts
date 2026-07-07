@@ -17,7 +17,11 @@ export async function apiFetch(path: string, options?: RequestInit) {
 
   if (!res.ok) {
     const body = await res.text();
-    throw new Error(`API ${res.status}: ${body}`);
+    const error = new Error(`API ${res.status}: ${body}`) as Error & { status?: number };
+    // Attach the status so callers can branch on it directly (e.g. "404 = not
+    // authorized for this admin route") instead of parsing the message string.
+    error.status = res.status;
+    throw error;
   }
 
   return res;

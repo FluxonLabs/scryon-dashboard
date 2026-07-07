@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { signOut } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { useAuth } from "@/context/AuthContext";
+import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
@@ -14,6 +15,7 @@ import {
   CheckSquare,
   Users,
   Settings,
+  Shield,
   LogOut,
   Menu,
   X,
@@ -27,10 +29,14 @@ const NAV = [
   { href: "/settings", icon: Settings,        label: "Settings" },
 ];
 
+const ADMIN_NAV_ITEM = { href: "/admin", icon: Shield, label: "Admin" };
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
+  const { profile } = useProfile();
+  const nav = profile?.isAdmin ? [...NAV, ADMIN_NAV_ITEM] : NAV;
   const [open, setOpen] = useState(false);
 
   // Close drawer whenever the route changes.
@@ -52,7 +58,7 @@ export function Sidebar() {
 
   const NavItems = () => (
     <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-      {NAV.map(({ href, icon: Icon, label }) => (
+      {nav.map(({ href, icon: Icon, label }) => (
         <Link
           key={href}
           href={href}

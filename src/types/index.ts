@@ -189,3 +189,55 @@ export interface ActionItemInput {
   priority?: ActionItemPriority | null;
   status?: ActionItemStatus;
 }
+
+// ─── User profile / admin ──────────────────────────────────────────────────
+
+export type UserPlan = "FREE" | "PRO";
+
+/** `GET /api/users/me` — only the fields this dashboard actually consumes. */
+export interface UserProfile {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  plan: UserPlan;
+  isAdmin: boolean;
+}
+
+/** `GET /api/admin/feature-flags` row. */
+export interface AdminFeatureFlag {
+  flagKey: string;
+  enabled: boolean;
+  updatedAt: string | null;
+  updatedBy: string | null;
+}
+
+/** `GET /api/admin/users` row. */
+export interface AdminUserSummary {
+  id: string;
+  email: string | null;
+  displayName: string | null;
+  plan: UserPlan;
+  topupMinutesBalance: number;
+  topupTranscriptsBalance: number;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+/** Spring Data `Page<T>` shape, as returned by `GET /api/admin/users`. */
+export interface Page<T> {
+  content: T[];
+  totalElements: number;
+  totalPages: number;
+  number: number;
+  size: number;
+}
+
+/**
+ * `GET /api/users/me/limits` response — only the top-up balance fields the admin
+ * grant-credits flow consumes (see `POST /api/admin/users/{id}/grant-credits`, which
+ * returns this same shape).
+ */
+export interface UploadLimits {
+  topupMinutesBalance: number;
+  topupTranscriptsBalance: number;
+}
