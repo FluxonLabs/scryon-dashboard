@@ -211,16 +211,31 @@ export interface AdminFeatureFlag {
   updatedBy: string | null;
 }
 
+export type AccountStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
+
 /** `GET /api/admin/users` row. */
 export interface AdminUserSummary {
   id: string;
   email: string | null;
   displayName: string | null;
   plan: UserPlan;
+  accountStatus: AccountStatus;
+  accountStatusReason: string | null;
   topupMinutesBalance: number;
   topupTranscriptsBalance: number;
   createdAt: string;
   lastLoginAt: string | null;
+}
+
+/** `GET /api/admin/audit-log` row. */
+export interface AdminAuditLogEntry {
+  id: string;
+  actorEmail: string;
+  action: string;
+  targetType: string;
+  targetId: string | null;
+  details: string | null;
+  createdAt: string;
 }
 
 /** Spring Data `Page<T>` shape, as returned by `GET /api/admin/users`. */

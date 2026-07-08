@@ -1,22 +1,28 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import type { AdminUserSummary, Page, UploadLimits } from "@/types";
+import type { AccountStatus, AdminUserSummary, Page, UploadLimits, UserPlan } from "@/types";
 
-/** `GET /api/admin/users` + `POST /api/admin/users/{id}/grant-credits` — admin-only. */
+/**
+ * `GET /api/admin/users` + credit/status/plan admin actions — admin-only.
+ * `search` filters by email substring server-side; changing it restarts pagination.
+ */
 export function useAdminUsers(pageSize = 50) {
   const [items, setItems] = useState<AdminUserSummary[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<(Error & { status?: number }) | null>(null);
+  const [search, setSearchState] = useState("");
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (pageIndex: number) => {
+  const load = useCallback(async (pageIndex: number, searchTerm: string) => {
     setLoading(true);
     setError(null);
     try {
       const params = new URLSearchParams({ page: String(pageIndex), size: String(pageSize) });
+      if (searchTerm) params.set("search", searchTerm);
       const res = await apiFetch(`/api/admin/users?${params}`);
       const data: Page<AdminUserSummary> = await res.json();
       setItems((prev) => (pageIndex > 0 ? [...prev, ...data.content] : data.content));
@@ -29,10 +35,15 @@ export function useAdminUsers(pageSize = 50) {
     }
   }, [pageSize]);
 
-  useEffect(() => { load(0); }, [load]);
+  useEffect(() => { load(0, search); }, [load, search]);
 
-  const loadMore = () => { if (hasMore) load(page + 1); };
-  const refresh = () => { setItems([]); setPage(0); setHasMore(true); load(0); };
+  const loadMore = () => { if (hasMore) load(page + 1, search); };
+  const refresh = () => { setItems([]); setPage(0); setHasMore(true); load(0, search); };
+
+  const setSearch = (value: string) => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => setSearchState(value), 300);
+  };
 
   const grantCredits = async (
     userId: string,
@@ -58,5 +69,33 @@ export function useAdminUsers(pageSize = 50) {
     return updatedLimits;
   };
 
-  return { items, loading, error, hasMore, loadMore, refresh, grantCredits };
+  const setAccountStatus = async (
+    userId: string,
+    status: AccountStatus,
+    reason: string,
+  ): Promise<AdminUserSummary> => {
+    const res = await apiFetch(`/api/admin/users/${userId}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, reason: reason || null }),
+    });
+    const updated: AdminUserSummary = await res.json();
+    setItems((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+    return updated;
+  };
+
+  const setPlan = async (userId: string, plan: UserPlan): Promise<AdminUserSummary> => {
+    const res = await apiFetch(`/api/admin/users/${userId}/plan`, {
+      method: "PATCH",
+      body: JSON.stringify({ plan }),
+    });
+    const updated: AdminUserSummary = await res.json();
+    setItems((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+    return updated;
+  };
+
+  return {
+    items, loading, error, hasMore, loadMore, refresh,
+    search, setSearch,
+    grantCredits, setAccountStatus, setPlan,
+  };
 }
