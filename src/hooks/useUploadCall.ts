@@ -4,7 +4,6 @@ import { useState } from "react";
 import { auth } from "@/lib/firebase";
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
-const API_KEY = process.env.NEXT_PUBLIC_SCRYON_API_KEY ?? "";
 
 export interface UploadResult {
   id: string;
@@ -28,7 +27,6 @@ export function useUploadCall() {
 
       const headers: Record<string, string> = {};
       if (token) headers["Authorization"] = `Bearer ${token}`;
-      if (API_KEY) headers["X-API-Key"] = API_KEY;
 
       const res = await fetch(`${BASE_URL}/api/calls/analyze`, {
         method: "POST",
