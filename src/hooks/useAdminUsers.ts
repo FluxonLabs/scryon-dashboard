@@ -93,9 +93,31 @@ export function useAdminUsers(pageSize = 50) {
     return updated;
   };
 
+  // Per-account feature-flag overrides (e.g. welcome_screen_enabled,
+  // tutorial_carousel_enabled). Returns the account's resolved flag map.
+  const getUserFlags = async (userId: string): Promise<Record<string, boolean>> => {
+    const res = await apiFetch(`/api/admin/users/${userId}/feature-flags`);
+    const data: { flags: Record<string, boolean> } = await res.json();
+    return data.flags;
+  };
+
+  const setUserFlagOverride = async (
+    userId: string,
+    key: string,
+    enabled: boolean,
+  ): Promise<Record<string, boolean>> => {
+    const res = await apiFetch(`/api/admin/users/${userId}/feature-flags/${key}`, {
+      method: "PUT",
+      body: JSON.stringify({ enabled }),
+    });
+    const data: { flags: Record<string, boolean> } = await res.json();
+    return data.flags;
+  };
+
   return {
     items, loading, error, hasMore, loadMore, refresh,
     search, setSearch,
     grantCredits, setAccountStatus, setPlan,
+    getUserFlags, setUserFlagOverride,
   };
 }
