@@ -16,6 +16,7 @@ import {
   Users,
   Settings,
   Shield,
+  UserPlus,
   LogOut,
   Menu,
   X,
@@ -37,12 +38,19 @@ const ADMIN_NAV = [
   { href: "/settings", icon: Settings,  label: "Settings" },
 ];
 
+// Super admins additionally get account creation.
+const SUPER_ADMIN_NAV = [
+  { href: "/admin",          icon: Shield,   label: "Admin" },
+  { href: "/create-account", icon: UserPlus, label: "Create account" },
+  { href: "/settings",       icon: Settings, label: "Settings" },
+];
+
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const { profile } = useProfile();
-  const nav = profile?.isAdmin ? ADMIN_NAV : USER_NAV;
+  const nav = profile?.isSuperAdmin ? SUPER_ADMIN_NAV : profile?.isAdmin ? ADMIN_NAV : USER_NAV;
   const [open, setOpen] = useState(false);
 
   // Close drawer whenever the route changes.

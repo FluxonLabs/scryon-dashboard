@@ -201,6 +201,7 @@ export interface UserProfile {
   displayName: string | null;
   plan: UserPlan;
   isAdmin: boolean;
+  isSuperAdmin: boolean;
 }
 
 /** `GET /api/admin/feature-flags` row. */
