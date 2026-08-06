@@ -21,7 +21,8 @@ import {
   X,
 } from "lucide-react";
 
-const NAV = [
+// Normal user surface — their own calls/actions/contacts.
+const USER_NAV = [
   { href: "/",         icon: LayoutDashboard, label: "Dashboard" },
   { href: "/calls",    icon: Phone,           label: "Calls" },
   { href: "/actions",  icon: CheckSquare,     label: "Actions" },
@@ -29,14 +30,19 @@ const NAV = [
   { href: "/settings", icon: Settings,        label: "Settings" },
 ];
 
-const ADMIN_NAV_ITEM = { href: "/admin", icon: Shield, label: "Admin" };
+// Admin/super-admin accounts don't transcribe and have no personal calls — they only get the
+// admin console (super admins also get account creation, added in the admin page).
+const ADMIN_NAV = [
+  { href: "/admin",    icon: Shield,    label: "Admin" },
+  { href: "/settings", icon: Settings,  label: "Settings" },
+];
 
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { user } = useAuth();
   const { profile } = useProfile();
-  const nav = profile?.isAdmin ? [...NAV, ADMIN_NAV_ITEM] : NAV;
+  const nav = profile?.isAdmin ? ADMIN_NAV : USER_NAV;
   const [open, setOpen] = useState(false);
 
   // Close drawer whenever the route changes.
