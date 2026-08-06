@@ -6,7 +6,8 @@ import { useAdminFeatureFlags } from "@/hooks/useAdminFeatureFlags";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminAuditLog } from "@/hooks/useAdminAuditLog";
 import { cn } from "@/lib/utils";
-import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History } from "lucide-react";
+import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History, Sparkles } from "lucide-react";
+import { useEffect } from "react";
 import type { AccountStatus, AdminAuditLogEntry, AdminUserSummary, UserPlan } from "@/types";
 
 export default function AdminPage() {
@@ -14,7 +15,7 @@ export default function AdminPage() {
   const { flags, loading: flagsLoading, error: flagsError, toggle } = useAdminFeatureFlags();
   const {
     items: users, loading: usersLoading, error: usersError, hasMore, loadMore,
-    search, setSearch, grantCredits, setAccountStatus, setPlan,
+    search, setSearch, grantCredits, setAccountStatus, setPlan, getUserFlags, setUserFlagOverride,
   } = useAdminUsers();
   const { items: auditEntries, loading: auditLoading, error: auditError, hasMore: auditHasMore, loadMore: auditLoadMore } = useAdminAuditLog();
 
@@ -59,6 +60,8 @@ export default function AdminPage() {
         grantCredits={grantCredits}
         setAccountStatus={setAccountStatus}
         setPlan={setPlan}
+        getUserFlags={getUserFlags}
+        setUserFlagOverride={setUserFlagOverride}
       />
       <AuditLogSection
         entries={auditEntries}
@@ -159,6 +162,8 @@ function UsersSection({
   grantCredits,
   setAccountStatus,
   setPlan,
+  getUserFlags,
+  setUserFlagOverride,
 }: {
   users: AdminUserSummary[];
   loading: boolean;
@@ -169,11 +174,13 @@ function UsersSection({
   grantCredits: (userId: string, minutes: number, transcripts: number) => Promise<unknown>;
   setAccountStatus: (userId: string, status: AccountStatus, reason: string) => Promise<unknown>;
   setPlan: (userId: string, plan: UserPlan) => Promise<unknown>;
+  getUserFlags: (userId: string) => Promise<Record<string, boolean>>;
+  setUserFlagOverride: (userId: string, key: string, enabled: boolean) => Promise<Record<string, boolean>>;
 }) {
   const [openRowId, setOpenRowId] = useState<string | null>(null);
-  const [openPanel, setOpenPanel] = useState<"credits" | "status" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"credits" | "status" | "onboarding" | null>(null);
 
-  function togglePanel(userId: string, panel: "credits" | "status") {
+  function togglePanel(userId: string, panel: "credits" | "status" | "onboarding") {
     if (openRowId === userId && openPanel === panel) {
       setOpenRowId(null);
       setOpenPanel(null);
@@ -242,6 +249,8 @@ function UsersSection({
                   alert("Failed to change plan. Please try again.");
                 }
               }}
+              getUserFlags={() => getUserFlags(u.id)}
+              setUserFlagOverride={(key, enabled) => setUserFlagOverride(u.id, key, enabled)}
             />
           ))}
           {users.length === 0 && !loading && (
@@ -271,13 +280,17 @@ function UserRow({
   onGrant,
   onSetStatus,
   onSetPlan,
+  getUserFlags,
+  setUserFlagOverride,
 }: {
   user: AdminUserSummary;
-  openPanel: "credits" | "status" | null;
-  onTogglePanel: (panel: "credits" | "status") => void;
+  openPanel: "credits" | "status" | "onboarding" | null;
+  onTogglePanel: (panel: "credits" | "status" | "onboarding") => void;
   onGrant: (minutes: number, transcripts: number) => Promise<void>;
   onSetStatus: (status: AccountStatus, reason: string) => Promise<void>;
   onSetPlan: (plan: UserPlan) => Promise<void>;
+  getUserFlags: () => Promise<Record<string, boolean>>;
+  setUserFlagOverride: (key: string, enabled: boolean) => Promise<Record<string, boolean>>;
 }) {
   const [minutes, setMinutes] = useState("");
   const [transcripts, setTranscripts] = useState("");
@@ -360,7 +373,18 @@ function UserRow({
           <Gift size={13} />
           Grant credits
         </button>
+        <button
+          onClick={() => onTogglePanel("onboarding")}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--brand)] transition-colors"
+        >
+          <Sparkles size={13} />
+          Onboarding
+        </button>
       </div>
+
+      {openPanel === "onboarding" && (
+        <OnboardingOverridesPanel getUserFlags={getUserFlags} setOverride={setUserFlagOverride} />
+      )}
 
       {openPanel === "credits" && (
         <div className="flex items-end gap-2 mt-3 pt-3 border-t border-[var(--border-subtle)]">
@@ -494,5 +518,74 @@ function AuditLogSection({
         </button>
       )}
     </section>
+  );
+}
+
+function OnboardingOverridesPanel({
+  getUserFlags,
+  setOverride,
+}: {
+  getUserFlags: () => Promise<Record<string, boolean>>;
+  setOverride: (key: string, enabled: boolean) => Promise<Record<string, boolean>>;
+}) {
+  const [flags, setFlags] = useState<Record<string, boolean> | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    getUserFlags()
+      .then((f) => { if (active) setFlags(f); })
+      .catch(() => { if (active) setFlags({}); });
+    return () => { active = false; };
+  }, [getUserFlags]);
+
+  const ROWS = [
+    { key: "welcome_screen_enabled", label: "Welcome screen" },
+    { key: "tutorial_carousel_enabled", label: "Tutorial carousel" },
+  ];
+
+  async function toggle(key: string, next: boolean) {
+    setPending(key);
+    try {
+      setFlags(await setOverride(key, next));
+    } catch {
+      alert("Failed to update the override. Please try again.");
+    } finally {
+      setPending(null);
+    }
+  }
+
+  return (
+    <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-2">
+      <p className="text-xs text-[var(--text-muted)]">
+        Per-account onboarding — overrides the global flag for this user only.
+      </p>
+      {flags == null ? (
+        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+          <Loader2 size={13} className="animate-spin" /> Loading…
+        </div>
+      ) : (
+        ROWS.map(({ key, label }) => {
+          const on = flags[key] ?? true;
+          return (
+            <div key={key} className="flex items-center justify-between">
+              <span className="text-sm text-[var(--foreground)]">{label}</span>
+              <button
+                onClick={() => toggle(key, !on)}
+                disabled={pending === key}
+                className={cn(
+                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50",
+                  on
+                    ? "bg-[var(--brand-dim)] text-[var(--brand-light)] border-transparent"
+                    : "text-[var(--text-secondary)] border-[var(--border)]",
+                )}
+              >
+                {pending === key ? "…" : on ? "On" : "Off"}
+              </button>
+            </div>
+          );
+        })
+      )}
+    </div>
   );
 }
