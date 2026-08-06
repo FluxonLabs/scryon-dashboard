@@ -114,10 +114,21 @@ export function useAdminUsers(pageSize = 50) {
     return data.flags;
   };
 
+  // Re-arm (pending=true → onboarding shows again next launch) or mark seen (false).
+  const setOnboardingPending = async (userId: string, pending: boolean): Promise<AdminUserSummary> => {
+    const res = await apiFetch(`/api/admin/users/${userId}/onboarding`, {
+      method: "PATCH",
+      body: JSON.stringify({ pending }),
+    });
+    const updated: AdminUserSummary = await res.json();
+    setItems((prev) => prev.map((u) => (u.id === userId ? updated : u)));
+    return updated;
+  };
+
   return {
     items, loading, error, hasMore, loadMore, refresh,
     search, setSearch,
     grantCredits, setAccountStatus, setPlan,
-    getUserFlags, setUserFlagOverride,
+    getUserFlags, setUserFlagOverride, setOnboardingPending,
   };
 }

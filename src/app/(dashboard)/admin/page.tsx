@@ -15,7 +15,7 @@ export default function AdminPage() {
   const { flags, loading: flagsLoading, error: flagsError, toggle } = useAdminFeatureFlags();
   const {
     items: users, loading: usersLoading, error: usersError, hasMore, loadMore,
-    search, setSearch, grantCredits, setAccountStatus, setPlan, getUserFlags, setUserFlagOverride,
+    search, setSearch, grantCredits, setAccountStatus, setPlan, getUserFlags, setUserFlagOverride, setOnboardingPending,
   } = useAdminUsers();
   const { items: auditEntries, loading: auditLoading, error: auditError, hasMore: auditHasMore, loadMore: auditLoadMore } = useAdminAuditLog();
 
@@ -62,6 +62,7 @@ export default function AdminPage() {
         setPlan={setPlan}
         getUserFlags={getUserFlags}
         setUserFlagOverride={setUserFlagOverride}
+        setOnboardingPending={setOnboardingPending}
       />
       <AuditLogSection
         entries={auditEntries}
@@ -164,6 +165,7 @@ function UsersSection({
   setPlan,
   getUserFlags,
   setUserFlagOverride,
+  setOnboardingPending,
 }: {
   users: AdminUserSummary[];
   loading: boolean;
@@ -176,6 +178,7 @@ function UsersSection({
   setPlan: (userId: string, plan: UserPlan) => Promise<unknown>;
   getUserFlags: (userId: string) => Promise<Record<string, boolean>>;
   setUserFlagOverride: (userId: string, key: string, enabled: boolean) => Promise<Record<string, boolean>>;
+  setOnboardingPending: (userId: string, pending: boolean) => Promise<AdminUserSummary>;
 }) {
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<"credits" | "status" | "onboarding" | null>(null);
@@ -251,6 +254,8 @@ function UsersSection({
               }}
               getUserFlags={() => getUserFlags(u.id)}
               setUserFlagOverride={(key, enabled) => setUserFlagOverride(u.id, key, enabled)}
+              onboardingSeenAt={u.onboardingSeenAt}
+              onSetOnboardingPending={(pending) => setOnboardingPending(u.id, pending)}
             />
           ))}
           {users.length === 0 && !loading && (
@@ -282,6 +287,8 @@ function UserRow({
   onSetPlan,
   getUserFlags,
   setUserFlagOverride,
+  onboardingSeenAt,
+  onSetOnboardingPending,
 }: {
   user: AdminUserSummary;
   openPanel: "credits" | "status" | "onboarding" | null;
@@ -291,6 +298,8 @@ function UserRow({
   onSetPlan: (plan: UserPlan) => Promise<void>;
   getUserFlags: () => Promise<Record<string, boolean>>;
   setUserFlagOverride: (key: string, enabled: boolean) => Promise<Record<string, boolean>>;
+  onboardingSeenAt: string | null;
+  onSetOnboardingPending: (pending: boolean) => Promise<AdminUserSummary>;
 }) {
   const [minutes, setMinutes] = useState("");
   const [transcripts, setTranscripts] = useState("");
@@ -383,7 +392,12 @@ function UserRow({
       </div>
 
       {openPanel === "onboarding" && (
-        <OnboardingOverridesPanel getUserFlags={getUserFlags} setOverride={setUserFlagOverride} />
+        <OnboardingOverridesPanel
+          getUserFlags={getUserFlags}
+          setOverride={setUserFlagOverride}
+          onboardingSeenAt={onboardingSeenAt}
+          onSetOnboardingPending={onSetOnboardingPending}
+        />
       )}
 
       {openPanel === "credits" && (
@@ -524,12 +538,31 @@ function AuditLogSection({
 function OnboardingOverridesPanel({
   getUserFlags,
   setOverride,
+  onboardingSeenAt,
+  onSetOnboardingPending,
 }: {
   getUserFlags: () => Promise<Record<string, boolean>>;
   setOverride: (key: string, enabled: boolean) => Promise<Record<string, boolean>>;
+  onboardingSeenAt: string | null;
+  onSetOnboardingPending: (pending: boolean) => Promise<AdminUserSummary>;
 }) {
   const [flags, setFlags] = useState<Record<string, boolean> | null>(null);
   const [pending, setPending] = useState<string | null>(null);
+  // Onboarding trigger: null seenAt = pending (will show). Auto-clears when the user finishes.
+  const [showOnboarding, setShowOnboarding] = useState(onboardingSeenAt == null);
+  const [triggerBusy, setTriggerBusy] = useState(false);
+
+  async function toggleTrigger(next: boolean) {
+    setTriggerBusy(true);
+    try {
+      const updated = await onSetOnboardingPending(next);
+      setShowOnboarding(updated.onboardingSeenAt == null);
+    } catch {
+      alert("Failed to update onboarding. Please try again.");
+    } finally {
+      setTriggerBusy(false);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -557,8 +590,27 @@ function OnboardingOverridesPanel({
 
   return (
     <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-2">
-      <p className="text-xs text-[var(--text-muted)]">
-        Per-account onboarding — overrides the global flag for this user only.
+      <div className="flex items-center justify-between">
+        <div>
+          <span className="text-sm text-[var(--foreground)]">Show onboarding on next launch</span>
+          <p className="text-[11px] text-[var(--text-muted)]">Turns off automatically once the user sees it.</p>
+        </div>
+        <button
+          onClick={() => toggleTrigger(!showOnboarding)}
+          disabled={triggerBusy}
+          className={cn(
+            "px-3 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50",
+            showOnboarding
+              ? "bg-[var(--brand-dim)] text-[var(--brand-light)] border-transparent"
+              : "text-[var(--text-secondary)] border-[var(--border)]",
+          )}
+        >
+          {triggerBusy ? "…" : showOnboarding ? "On" : "Off"}
+        </button>
+      </div>
+
+      <p className="text-xs text-[var(--text-muted)] pt-1">
+        Which slides appear (per-account override of the global flag):
       </p>
       {flags == null ? (
         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">

@@ -226,6 +226,8 @@ export interface AdminUserSummary {
   topupTranscriptsBalance: number;
   createdAt: string;
   lastLoginAt: string | null;
+  /** null = onboarding is pending (the app will show it); a timestamp = seen. */
+  onboardingSeenAt: string | null;
 }
 
 /** `GET /api/admin/audit-log` row. */
