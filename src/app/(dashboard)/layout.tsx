@@ -1,9 +1,11 @@
 import { AuthGuard } from "@/components/AuthGuard";
 import { Sidebar } from "@/components/Sidebar";
+import { AdminRedirect } from "@/components/AdminRedirect";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
+      <AdminRedirect />
       <div className="flex h-screen overflow-hidden bg-[var(--background)]">
         <Sidebar />
 
