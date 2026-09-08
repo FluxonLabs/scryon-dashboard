@@ -212,6 +212,12 @@ export interface AdminFeatureFlag {
   updatedBy: string | null;
 }
 
+/** Effective flags and the subset explicitly overridden for one account. */
+export interface AdminUserFeatureFlags {
+  flags: Record<string, boolean>;
+  overrides: Record<string, boolean>;
+}
+
 export type AccountStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
 
 /** `GET /api/admin/users` row. */

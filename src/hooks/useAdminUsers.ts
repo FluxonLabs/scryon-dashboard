@@ -2,43 +2,61 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import type { AccountStatus, AdminUserSummary, Page, UploadLimits, UserPlan } from "@/types";
+import type { AccountStatus, AdminUserFeatureFlags, AdminUserSummary, Page, UploadLimits, UserPlan } from "@/types";
 
 /**
  * `GET /api/admin/users` + credit/status/plan admin actions — admin-only.
  * `search` filters by email substring server-side; changing it restarts pagination.
  */
-export function useAdminUsers(pageSize = 50) {
+export function useAdminUsers(pageSize = 200) {
   const [items, setItems] = useState<AdminUserSummary[]>([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<(Error & { status?: number }) | null>(null);
   const [search, setSearchState] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const requestRef = useRef(0);
 
-  const load = useCallback(async (pageIndex: number, searchTerm: string) => {
+  const load = useCallback(async (searchTerm: string) => {
+    const requestId = ++requestRef.current;
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({ page: String(pageIndex), size: String(pageSize) });
-      if (searchTerm) params.set("search", searchTerm);
-      const res = await apiFetch(`/api/admin/users?${params}`);
-      const data: Page<AdminUserSummary> = await res.json();
-      setItems((prev) => (pageIndex > 0 ? [...prev, ...data.content] : data.content));
-      setHasMore(pageIndex + 1 < data.totalPages);
-      setPage(pageIndex);
+      const allUsers: AdminUserSummary[] = [];
+      let pageIndex = 0;
+      let pageCount = 1;
+
+      // The API is intentionally paginated, but an admin account directory should display the
+      // complete result set. Fetch every page in stable backend order instead of silently
+      // stopping after the first 50 rows.
+      while (pageIndex < pageCount) {
+        const params = new URLSearchParams({ page: String(pageIndex), size: String(pageSize) });
+        if (searchTerm) params.set("search", searchTerm);
+        const res = await apiFetch(`/api/admin/users?${params}`);
+        const data: Page<AdminUserSummary> = await res.json();
+        if (requestId !== requestRef.current) return;
+        allUsers.push(...data.content);
+        pageCount = data.totalPages;
+        setTotal(data.totalElements);
+        pageIndex += 1;
+      }
+
+      if (requestId === requestRef.current) setItems(allUsers);
     } catch (e) {
-      setError(e instanceof Error ? e : new Error("Failed to load users"));
+      if (requestId === requestRef.current) {
+        setError(e instanceof Error ? e : new Error("Failed to load users"));
+      }
     } finally {
-      setLoading(false);
+      if (requestId === requestRef.current) setLoading(false);
     }
   }, [pageSize]);
 
-  useEffect(() => { load(0, search); }, [load, search]);
+  useEffect(() => {
+    const timer = window.setTimeout(() => { void load(search); }, 0);
+    return () => window.clearTimeout(timer);
+  }, [load, search]);
 
-  const loadMore = () => { if (hasMore) load(page + 1, search); };
-  const refresh = () => { setItems([]); setPage(0); setHasMore(true); load(0, search); };
+  const refresh = () => { setItems([]); setTotal(0); load(search); };
 
   const setSearch = (value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -95,29 +113,37 @@ export function useAdminUsers(pageSize = 50) {
 
   // Per-account feature-flag overrides (e.g. welcome_screen_enabled,
   // tutorial_carousel_enabled). Returns the account's resolved flag map.
-  const getUserFlags = async (userId: string): Promise<Record<string, boolean>> => {
+  const getUserFlags = async (userId: string): Promise<AdminUserFeatureFlags> => {
     const res = await apiFetch(`/api/admin/users/${userId}/feature-flags`);
-    const data: { flags: Record<string, boolean> } = await res.json();
-    return data.flags;
+    return res.json();
   };
 
   const setUserFlagOverride = async (
     userId: string,
     key: string,
     enabled: boolean,
-  ): Promise<Record<string, boolean>> => {
+  ): Promise<AdminUserFeatureFlags> => {
     const res = await apiFetch(`/api/admin/users/${userId}/feature-flags/${key}`, {
       method: "PUT",
       body: JSON.stringify({ enabled }),
     });
-    const data: { flags: Record<string, boolean> } = await res.json();
-    return data.flags;
+    return res.json();
+  };
+
+  const clearUserFlagOverride = async (
+    userId: string,
+    key: string,
+  ): Promise<AdminUserFeatureFlags> => {
+    const res = await apiFetch(`/api/admin/users/${userId}/feature-flags/${key}`, {
+      method: "DELETE",
+    });
+    return res.json();
   };
 
   return {
-    items, loading, error, hasMore, loadMore, refresh,
+    items, total, loading, error, refresh,
     search, setSearch,
     grantCredits, setAccountStatus, setPlan,
-    getUserFlags, setUserFlagOverride,
+    getUserFlags, setUserFlagOverride, clearUserFlagOverride,
   };
 }

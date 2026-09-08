@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useProfile } from "@/hooks/useProfile";
 import { useAdminFeatureFlags } from "@/hooks/useAdminFeatureFlags";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminAuditLog } from "@/hooks/useAdminAuditLog";
 import { cn } from "@/lib/utils";
-import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History, Sparkles } from "lucide-react";
-import { useEffect } from "react";
-import type { AccountStatus, AdminAuditLogEntry, AdminUserSummary, UserPlan } from "@/types";
+import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History, SlidersHorizontal } from "lucide-react";
+import type { AccountStatus, AdminAuditLogEntry, AdminFeatureFlag, AdminUserFeatureFlags, AdminUserSummary, UserPlan } from "@/types";
 
 // Onboarding flags are managed per account from each user row's Onboarding panel, not as a
 // global on/off toggle, so they're hidden from the global Feature flags section.
@@ -18,8 +17,9 @@ export default function AdminPage() {
   const { profile, loading: profileLoading } = useProfile();
   const { flags, loading: flagsLoading, error: flagsError, toggle } = useAdminFeatureFlags();
   const {
-    items: users, loading: usersLoading, error: usersError, hasMore, loadMore,
-    search, setSearch, grantCredits, setAccountStatus, setPlan, getUserFlags, setUserFlagOverride,
+    items: users, total: usersTotal, loading: usersLoading, error: usersError,
+    search, setSearch, grantCredits, setAccountStatus, setPlan,
+    getUserFlags, setUserFlagOverride, clearUserFlagOverride,
   } = useAdminUsers();
   const { items: auditEntries, loading: auditLoading, error: auditError, hasMore: auditHasMore, loadMore: auditLoadMore } = useAdminAuditLog();
 
@@ -56,9 +56,9 @@ export default function AdminPage() {
       <FeatureFlagsSection flags={flags} loading={flagsLoading} toggle={toggle} />
       <UsersSection
         users={users}
+        total={usersTotal}
         loading={usersLoading}
-        hasMore={hasMore}
-        loadMore={loadMore}
+        availableFlags={flags}
         search={search}
         setSearch={setSearch}
         grantCredits={grantCredits}
@@ -66,6 +66,7 @@ export default function AdminPage() {
         setPlan={setPlan}
         getUserFlags={getUserFlags}
         setUserFlagOverride={setUserFlagOverride}
+        clearUserFlagOverride={clearUserFlagOverride}
       />
       <AuditLogSection
         entries={auditEntries}
@@ -162,9 +163,9 @@ function AccountStatusBadge({ status }: { status: AccountStatus }) {
 
 function UsersSection({
   users,
+  total,
   loading,
-  hasMore,
-  loadMore,
+  availableFlags,
   search,
   setSearch,
   grantCredits,
@@ -172,23 +173,25 @@ function UsersSection({
   setPlan,
   getUserFlags,
   setUserFlagOverride,
+  clearUserFlagOverride,
 }: {
   users: AdminUserSummary[];
+  total: number;
   loading: boolean;
-  hasMore: boolean;
-  loadMore: () => void;
+  availableFlags: AdminFeatureFlag[];
   search: string;
   setSearch: (value: string) => void;
   grantCredits: (userId: string, minutes: number, transcripts: number) => Promise<unknown>;
   setAccountStatus: (userId: string, status: AccountStatus, reason: string) => Promise<unknown>;
   setPlan: (userId: string, plan: UserPlan) => Promise<unknown>;
-  getUserFlags: (userId: string) => Promise<Record<string, boolean>>;
-  setUserFlagOverride: (userId: string, key: string, enabled: boolean) => Promise<Record<string, boolean>>;
+  getUserFlags: (userId: string) => Promise<AdminUserFeatureFlags>;
+  setUserFlagOverride: (userId: string, key: string, enabled: boolean) => Promise<AdminUserFeatureFlags>;
+  clearUserFlagOverride: (userId: string, key: string) => Promise<AdminUserFeatureFlags>;
 }) {
   const [openRowId, setOpenRowId] = useState<string | null>(null);
-  const [openPanel, setOpenPanel] = useState<"credits" | "status" | "onboarding" | null>(null);
+  const [openPanel, setOpenPanel] = useState<"credits" | "status" | "features" | null>(null);
 
-  function togglePanel(userId: string, panel: "credits" | "status" | "onboarding") {
+  function togglePanel(userId: string, panel: "credits" | "status" | "features") {
     if (openRowId === userId && openPanel === panel) {
       setOpenRowId(null);
       setOpenPanel(null);
@@ -203,7 +206,7 @@ function UsersSection({
       <div className="flex items-center justify-between mb-3 gap-4">
         <h2 className="text-sm font-semibold text-[var(--foreground)]">Users</h2>
         <p className="text-xs text-[var(--text-muted)]">
-          {loading && users.length === 0 ? "Loading…" : `${users.length} loaded`}
+          {loading ? `Loading ${users.length || ""}…` : `${total} ${total === 1 ? "account" : "accounts"}`}
         </p>
       </div>
 
@@ -230,6 +233,7 @@ function UsersSection({
             <UserRow
               key={u.id}
               user={u}
+              availableFlags={availableFlags}
               openPanel={openRowId === u.id ? openPanel : null}
               onTogglePanel={(panel) => togglePanel(u.id, panel)}
               onGrant={async (minutes, transcripts) => {
@@ -259,6 +263,7 @@ function UsersSection({
               }}
               getUserFlags={() => getUserFlags(u.id)}
               setUserFlagOverride={(key, enabled) => setUserFlagOverride(u.id, key, enabled)}
+              clearUserFlagOverride={(key) => clearUserFlagOverride(u.id, key)}
             />
           ))}
           {users.length === 0 && !loading && (
@@ -267,22 +272,13 @@ function UsersSection({
         </div>
       )}
 
-      {hasMore && (
-        <button
-          onClick={loadMore}
-          disabled={loading}
-          className="mt-3 flex items-center gap-1.5 px-3 py-2 rounded-lg border border-[var(--border)] text-sm text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--brand)] transition-colors disabled:opacity-50"
-        >
-          {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-          Load more
-        </button>
-      )}
     </section>
   );
 }
 
 function UserRow({
   user,
+  availableFlags,
   openPanel,
   onTogglePanel,
   onGrant,
@@ -290,15 +286,18 @@ function UserRow({
   onSetPlan,
   getUserFlags,
   setUserFlagOverride,
+  clearUserFlagOverride,
 }: {
   user: AdminUserSummary;
-  openPanel: "credits" | "status" | "onboarding" | null;
-  onTogglePanel: (panel: "credits" | "status" | "onboarding") => void;
+  availableFlags: AdminFeatureFlag[];
+  openPanel: "credits" | "status" | "features" | null;
+  onTogglePanel: (panel: "credits" | "status" | "features") => void;
   onGrant: (minutes: number, transcripts: number) => Promise<void>;
   onSetStatus: (status: AccountStatus, reason: string) => Promise<void>;
   onSetPlan: (plan: UserPlan) => Promise<void>;
-  getUserFlags: () => Promise<Record<string, boolean>>;
-  setUserFlagOverride: (key: string, enabled: boolean) => Promise<Record<string, boolean>>;
+  getUserFlags: () => Promise<AdminUserFeatureFlags>;
+  setUserFlagOverride: (key: string, enabled: boolean) => Promise<AdminUserFeatureFlags>;
+  clearUserFlagOverride: (key: string) => Promise<AdminUserFeatureFlags>;
 }) {
   const [minutes, setMinutes] = useState("");
   const [transcripts, setTranscripts] = useState("");
@@ -343,7 +342,7 @@ function UserRow({
 
   return (
     <div className="px-4 py-3.5">
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-4 flex-wrap">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
             <p className="text-sm font-medium text-[var(--foreground)] truncate">
@@ -382,18 +381,20 @@ function UserRow({
           Grant credits
         </button>
         <button
-          onClick={() => onTogglePanel("onboarding")}
+          onClick={() => onTogglePanel("features")}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--border)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--foreground)] hover:border-[var(--brand)] transition-colors"
         >
-          <Sparkles size={13} />
-          Onboarding
+          <SlidersHorizontal size={13} />
+          Features
         </button>
       </div>
 
-      {openPanel === "onboarding" && (
-        <OnboardingOverridesPanel
+      {openPanel === "features" && (
+        <FeatureOverridesPanel
+          availableFlags={availableFlags}
           getUserFlags={getUserFlags}
           setOverride={setUserFlagOverride}
+          clearOverride={clearUserFlagOverride}
         />
       )}
 
@@ -532,33 +533,35 @@ function AuditLogSection({
   );
 }
 
-function OnboardingOverridesPanel({
+function FeatureOverridesPanel({
+  availableFlags,
   getUserFlags,
   setOverride,
+  clearOverride,
 }: {
-  getUserFlags: () => Promise<Record<string, boolean>>;
-  setOverride: (key: string, enabled: boolean) => Promise<Record<string, boolean>>;
+  availableFlags: AdminFeatureFlag[];
+  getUserFlags: () => Promise<AdminUserFeatureFlags>;
+  setOverride: (key: string, enabled: boolean) => Promise<AdminUserFeatureFlags>;
+  clearOverride: (key: string) => Promise<AdminUserFeatureFlags>;
 }) {
-  const [flags, setFlags] = useState<Record<string, boolean> | null>(null);
+  const [userFlags, setUserFlags] = useState<AdminUserFeatureFlags | null>(null);
+  const [loadError, setLoadError] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
     getUserFlags()
-      .then((f) => { if (active) setFlags(f); })
-      .catch(() => { if (active) setFlags({}); });
+      .then((f) => { if (active) setUserFlags(f); })
+      .catch(() => { if (active) setLoadError(true); });
     return () => { active = false; };
   }, [getUserFlags]);
 
-  const ROWS = [
-    { key: "welcome_screen_enabled", label: "Welcome screen" },
-    { key: "tutorial_carousel_enabled", label: "Tutorial carousel" },
-  ];
-
-  async function toggle(key: string, next: boolean) {
+  async function update(key: string, value: "inherit" | "enabled" | "disabled") {
     setPending(key);
     try {
-      setFlags(await setOverride(key, next));
+      setUserFlags(value === "inherit"
+        ? await clearOverride(key)
+        : await setOverride(key, value === "enabled"));
     } catch {
       alert("Failed to update the override. Please try again.");
     } finally {
@@ -569,31 +572,38 @@ function OnboardingOverridesPanel({
   return (
     <div className="mt-3 pt-3 border-t border-[var(--border-subtle)] space-y-2">
       <p className="text-xs text-[var(--text-muted)]">
-        Turn a screen on to show it to this user on their next launch. It turns off automatically
-        once they finish; turn it back on to show it again.
+        Choose whether this account inherits each global setting or gets its own value.
       </p>
-      {flags == null ? (
+      {loadError ? (
+        <p className="text-xs text-[var(--negative)]">Could not load this account&apos;s features.</p>
+      ) : userFlags == null ? (
         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
           <Loader2 size={13} className="animate-spin" /> Loading…
         </div>
       ) : (
-        ROWS.map(({ key, label }) => {
-          const on = flags[key] ?? true;
+        availableFlags.map((flag) => {
+          const override = userFlags.overrides[flag.flagKey];
+          const value = override === undefined ? "inherit" : override ? "enabled" : "disabled";
+          const effective = userFlags.flags[flag.flagKey] ?? false;
           return (
-            <div key={key} className="flex items-center justify-between">
-              <span className="text-sm text-[var(--foreground)]">{label}</span>
-              <button
-                onClick={() => toggle(key, !on)}
-                disabled={pending === key}
-                className={cn(
-                  "px-3 py-1 rounded-full text-xs font-medium border transition-colors disabled:opacity-50",
-                  on
-                    ? "bg-[var(--brand-dim)] text-[var(--brand-light)] border-transparent"
-                    : "text-[var(--text-secondary)] border-[var(--border)]",
-                )}
+            <div key={flag.flagKey} className="flex items-center justify-between gap-4 py-1">
+              <div className="min-w-0">
+                <p className="text-sm font-mono text-[var(--foreground)] break-all">{flag.flagKey}</p>
+                <p className="text-[10px] text-[var(--text-muted)]">
+                  Effective: {effective ? "enabled" : "disabled"} · Global: {flag.enabled ? "enabled" : "disabled"}
+                </p>
+              </div>
+              <select
+                value={value}
+                onChange={(event) => update(flag.flagKey, event.target.value as "inherit" | "enabled" | "disabled")}
+                disabled={pending === flag.flagKey}
+                aria-label={`${flag.flagKey} setting for ${value}`}
+                className="shrink-0 px-2 py-1.5 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] text-xs font-medium text-[var(--foreground)] disabled:opacity-50"
               >
-                {pending === key ? "…" : on ? "On" : "Off"}
-              </button>
+                <option value="inherit">Inherit global</option>
+                <option value="enabled">Enabled</option>
+                <option value="disabled">Disabled</option>
+              </select>
             </div>
           );
         })
