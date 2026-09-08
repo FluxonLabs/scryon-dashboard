@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import type { AccountStatus, AdminUserFeatureFlags, AdminUserSummary, Page, UploadLimits, UserPlan } from "@/types";
+import type { AccountStatus, AdminUserFeatureFlags, AdminUserSummary, AdminUserSyncResult, Page, UploadLimits, UserPlan } from "@/types";
 
 /**
  * `GET /api/admin/users` + credit/status/plan admin actions — admin-only.
@@ -13,15 +13,31 @@ export function useAdminUsers(pageSize = 200) {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<(Error & { status?: number }) | null>(null);
+  const [syncError, setSyncError] = useState<Error | null>(null);
+  const [syncResult, setSyncResult] = useState<AdminUserSyncResult | null>(null);
   const [search, setSearchState] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestRef = useRef(0);
+  const hasSyncedRef = useRef(false);
 
   const load = useCallback(async (searchTerm: string) => {
     const requestId = ++requestRef.current;
     setLoading(true);
     setError(null);
     try {
+      if (!hasSyncedRef.current) {
+        hasSyncedRef.current = true;
+        setSyncError(null);
+        try {
+          const syncResponse = await apiFetch("/api/admin/users/sync-firebase", { method: "POST" });
+          setSyncResult(await syncResponse.json());
+        } catch (syncFailure) {
+          // Keep the existing Scryon directory usable if Firebase Admin is temporarily
+          // unavailable or the backend is deployed before service credentials are configured.
+          setSyncError(syncFailure instanceof Error ? syncFailure : new Error("Firebase sync failed"));
+        }
+      }
+
       const allUsers: AdminUserSummary[] = [];
       let pageIndex = 0;
       let pageCount = 1;
@@ -56,7 +72,12 @@ export function useAdminUsers(pageSize = 200) {
     return () => window.clearTimeout(timer);
   }, [load, search]);
 
-  const refresh = () => { setItems([]); setTotal(0); load(search); };
+  const refresh = () => {
+    hasSyncedRef.current = false;
+    setItems([]);
+    setTotal(0);
+    void load(search);
+  };
 
   const setSearch = (value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -141,7 +162,7 @@ export function useAdminUsers(pageSize = 200) {
   };
 
   return {
-    items, total, loading, error, refresh,
+    items, total, loading, error, syncError, syncResult, refresh,
     search, setSearch,
     grantCredits, setAccountStatus, setPlan,
     getUserFlags, setUserFlagOverride, clearUserFlagOverride,

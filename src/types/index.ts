@@ -218,6 +218,12 @@ export interface AdminUserFeatureFlags {
   overrides: Record<string, boolean>;
 }
 
+export interface AdminUserSyncResult {
+  scanned: number;
+  imported: number;
+  alreadyPresent: number;
+}
+
 export type AccountStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
 
 /** `GET /api/admin/users` row. */

@@ -18,6 +18,7 @@ export default function AdminPage() {
   const { flags, loading: flagsLoading, error: flagsError, toggle } = useAdminFeatureFlags();
   const {
     items: users, total: usersTotal, loading: usersLoading, error: usersError,
+    syncError: usersSyncError, syncResult: usersSyncResult,
     search, setSearch, grantCredits, setAccountStatus, setPlan,
     getUserFlags, setUserFlagOverride, clearUserFlagOverride,
   } = useAdminUsers();
@@ -58,6 +59,8 @@ export default function AdminPage() {
         users={users}
         total={usersTotal}
         loading={usersLoading}
+        syncError={usersSyncError}
+        importedFromFirebase={usersSyncResult?.imported ?? 0}
         availableFlags={flags}
         search={search}
         setSearch={setSearch}
@@ -165,6 +168,8 @@ function UsersSection({
   users,
   total,
   loading,
+  syncError,
+  importedFromFirebase,
   availableFlags,
   search,
   setSearch,
@@ -178,6 +183,8 @@ function UsersSection({
   users: AdminUserSummary[];
   total: number;
   loading: boolean;
+  syncError: Error | null;
+  importedFromFirebase: number;
   availableFlags: AdminFeatureFlag[];
   search: string;
   setSearch: (value: string) => void;
@@ -220,6 +227,17 @@ function UsersSection({
           className="w-full pl-9 pr-3 py-2 rounded-lg border border-[var(--border)] bg-[var(--surface)] text-sm text-[var(--foreground)] placeholder:text-[var(--text-muted)]"
         />
       </div>
+
+      {importedFromFirebase > 0 && (
+        <p className="mb-3 text-xs text-[var(--positive)]">
+          Imported {importedFromFirebase} {importedFromFirebase === 1 ? "account" : "accounts"} from Firebase Authentication.
+        </p>
+      )}
+      {syncError && (
+        <p className="mb-3 text-xs text-[var(--warning)]">
+          Firebase account sync was unavailable. Showing accounts already known to Scryon.
+        </p>
+      )}
 
       {loading && users.length === 0 ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
