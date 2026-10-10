@@ -224,6 +224,19 @@ export interface AdminUserSyncResult {
   alreadyPresent: number;
 }
 
+export interface AdminAskReadiness {
+  completedCalls: number;
+  indexedCalls: number;
+  unindexedCalls: number;
+  indexing: boolean;
+  ready: boolean;
+}
+
+export interface AdminAskReindexResult {
+  started: boolean;
+  running: boolean;
+}
+
 export type AccountStatus = "ACTIVE" | "SUSPENDED" | "DISABLED";
 
 /** `GET /api/admin/users` row. */

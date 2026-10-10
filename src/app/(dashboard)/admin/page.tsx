@@ -6,8 +6,8 @@ import { useAdminFeatureFlags } from "@/hooks/useAdminFeatureFlags";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminAuditLog } from "@/hooks/useAdminAuditLog";
 import { cn } from "@/lib/utils";
-import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History, SlidersHorizontal } from "lucide-react";
-import type { AccountStatus, AdminAuditLogEntry, AdminFeatureFlag, AdminUserFeatureFlags, AdminUserSummary, UserPlan } from "@/types";
+import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History, SlidersHorizontal, DatabaseZap } from "lucide-react";
+import type { AccountStatus, AdminAskReadiness, AdminAuditLogEntry, AdminFeatureFlag, AdminUserFeatureFlags, AdminUserSummary, UserPlan } from "@/types";
 
 // Onboarding flags are managed per account from each user row's Onboarding panel, not as a
 // global on/off toggle, so they're hidden from the global Feature flags section.
@@ -21,6 +21,7 @@ export default function AdminPage() {
     syncError: usersSyncError, syncResult: usersSyncResult,
     search, setSearch, grantCredits, setAccountStatus, setPlan,
     getUserFlags, setUserFlagOverride, clearUserFlagOverride,
+    getAskReadiness, reindexAskForUser,
   } = useAdminUsers();
   const { items: auditEntries, loading: auditLoading, error: auditError, hasMore: auditHasMore, loadMore: auditLoadMore } = useAdminAuditLog();
 
@@ -70,6 +71,8 @@ export default function AdminPage() {
         getUserFlags={getUserFlags}
         setUserFlagOverride={setUserFlagOverride}
         clearUserFlagOverride={clearUserFlagOverride}
+        getAskReadiness={getAskReadiness}
+        reindexAskForUser={reindexAskForUser}
       />
       <AuditLogSection
         entries={auditEntries}
@@ -179,6 +182,8 @@ function UsersSection({
   getUserFlags,
   setUserFlagOverride,
   clearUserFlagOverride,
+  getAskReadiness,
+  reindexAskForUser,
 }: {
   users: AdminUserSummary[];
   total: number;
@@ -194,6 +199,8 @@ function UsersSection({
   getUserFlags: (userId: string) => Promise<AdminUserFeatureFlags>;
   setUserFlagOverride: (userId: string, key: string, enabled: boolean) => Promise<AdminUserFeatureFlags>;
   clearUserFlagOverride: (userId: string, key: string) => Promise<AdminUserFeatureFlags>;
+  getAskReadiness: (userId: string) => Promise<AdminAskReadiness>;
+  reindexAskForUser: (userId: string) => Promise<unknown>;
 }) {
   const [openRowId, setOpenRowId] = useState<string | null>(null);
   const [openPanel, setOpenPanel] = useState<"credits" | "status" | "features" | null>(null);
@@ -282,6 +289,8 @@ function UsersSection({
               getUserFlags={() => getUserFlags(u.id)}
               setUserFlagOverride={(key, enabled) => setUserFlagOverride(u.id, key, enabled)}
               clearUserFlagOverride={(key) => clearUserFlagOverride(u.id, key)}
+              getAskReadiness={() => getAskReadiness(u.id)}
+              reindexAskForUser={() => reindexAskForUser(u.id)}
             />
           ))}
           {users.length === 0 && !loading && (
@@ -305,6 +314,8 @@ function UserRow({
   getUserFlags,
   setUserFlagOverride,
   clearUserFlagOverride,
+  getAskReadiness,
+  reindexAskForUser,
 }: {
   user: AdminUserSummary;
   availableFlags: AdminFeatureFlag[];
@@ -316,6 +327,8 @@ function UserRow({
   getUserFlags: () => Promise<AdminUserFeatureFlags>;
   setUserFlagOverride: (key: string, enabled: boolean) => Promise<AdminUserFeatureFlags>;
   clearUserFlagOverride: (key: string) => Promise<AdminUserFeatureFlags>;
+  getAskReadiness: () => Promise<AdminAskReadiness>;
+  reindexAskForUser: () => Promise<unknown>;
 }) {
   const [minutes, setMinutes] = useState("");
   const [transcripts, setTranscripts] = useState("");
@@ -413,6 +426,8 @@ function UserRow({
           getUserFlags={getUserFlags}
           setOverride={setUserFlagOverride}
           clearOverride={clearUserFlagOverride}
+          getAskReadiness={getAskReadiness}
+          reindexAskForUser={reindexAskForUser}
         />
       )}
 
@@ -556,23 +571,56 @@ function FeatureOverridesPanel({
   getUserFlags,
   setOverride,
   clearOverride,
+  getAskReadiness,
+  reindexAskForUser,
 }: {
   availableFlags: AdminFeatureFlag[];
   getUserFlags: () => Promise<AdminUserFeatureFlags>;
   setOverride: (key: string, enabled: boolean) => Promise<AdminUserFeatureFlags>;
   clearOverride: (key: string) => Promise<AdminUserFeatureFlags>;
+  getAskReadiness: () => Promise<AdminAskReadiness>;
+  reindexAskForUser: () => Promise<unknown>;
 }) {
   const [userFlags, setUserFlags] = useState<AdminUserFeatureFlags | null>(null);
   const [loadError, setLoadError] = useState(false);
   const [pending, setPending] = useState<string | null>(null);
+  const [askReadiness, setAskReadiness] = useState<AdminAskReadiness | null>(null);
+  const [askError, setAskError] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
 
   useEffect(() => {
     let active = true;
     getUserFlags()
       .then((f) => { if (active) setUserFlags(f); })
       .catch(() => { if (active) setLoadError(true); });
+    getAskReadiness()
+      .then((status) => { if (active) setAskReadiness(status); })
+      .catch(() => { if (active) setAskError(true); });
     return () => { active = false; };
-  }, [getUserFlags]);
+  }, [getUserFlags, getAskReadiness]);
+
+  useEffect(() => {
+    if (!askReadiness?.indexing) return;
+    const timer = window.setTimeout(() => {
+      getAskReadiness()
+        .then(setAskReadiness)
+        .catch(() => setAskError(true));
+    }, 2000);
+    return () => window.clearTimeout(timer);
+  }, [askReadiness?.indexing, askReadiness?.indexedCalls, getAskReadiness]);
+
+  async function prepareAsk() {
+    setReindexing(true);
+    setAskError(false);
+    try {
+      await reindexAskForUser();
+      setAskReadiness(await getAskReadiness());
+    } catch {
+      setAskError(true);
+    } finally {
+      setReindexing(false);
+    }
+  }
 
   async function update(key: string, value: "inherit" | "enabled" | "disabled") {
     setPending(key);
@@ -599,7 +647,8 @@ function FeatureOverridesPanel({
           <Loader2 size={13} className="animate-spin" /> Loading…
         </div>
       ) : (
-        availableFlags.map((flag) => {
+        <>
+        {availableFlags.map((flag) => {
           const override = userFlags.overrides[flag.flagKey];
           const value = override === undefined ? "inherit" : override ? "enabled" : "disabled";
           const effective = userFlags.flags[flag.flagKey] ?? false;
@@ -624,7 +673,38 @@ function FeatureOverridesPanel({
               </select>
             </div>
           );
-        })
+        })}
+        {availableFlags.some((flag) => flag.flagKey === "ask_enabled") && (
+          <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface-2)] p-3">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
+              <div className="flex items-start gap-2 min-w-0">
+                <DatabaseZap size={15} className="mt-0.5 shrink-0 text-[var(--brand-light)]" />
+                <div>
+                  <p className="text-xs font-semibold text-[var(--foreground)]">Ask call index</p>
+                  {askReadiness ? (
+                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                      {askReadiness.indexedCalls} of {askReadiness.completedCalls} calls ready
+                      {askReadiness.indexing ? " · indexing" : askReadiness.ready ? " · ready" : ` · ${askReadiness.unindexedCalls} remaining`}
+                    </p>
+                  ) : (
+                    <p className="text-[10px] text-[var(--text-muted)] mt-0.5">
+                      {askError ? "Readiness unavailable. Deploy the Ask backend first." : "Loading readiness…"}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={prepareAsk}
+                disabled={reindexing || askReadiness?.indexing}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[var(--brand)] text-xs font-medium text-[var(--brand-light)] hover:bg-[var(--brand-dim)] disabled:opacity-40"
+              >
+                {(reindexing || askReadiness?.indexing) && <Loader2 size={12} className="animate-spin" />}
+                {askReadiness?.ready ? "Rebuild index" : "Prepare Ask"}
+              </button>
+            </div>
+          </div>
+        )}
+        </>
       )}
     </div>
   );

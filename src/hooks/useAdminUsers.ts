@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { apiFetch } from "@/lib/api";
-import type { AccountStatus, AdminUserFeatureFlags, AdminUserSummary, AdminUserSyncResult, Page, UploadLimits, UserPlan } from "@/types";
+import type { AccountStatus, AdminAskReadiness, AdminAskReindexResult, AdminUserFeatureFlags, AdminUserSummary, AdminUserSyncResult, Page, UploadLimits, UserPlan } from "@/types";
 
 /**
  * `GET /api/admin/users` + credit/status/plan admin actions — admin-only.
@@ -161,10 +161,21 @@ export function useAdminUsers(pageSize = 200) {
     return res.json();
   };
 
+  const getAskReadiness = async (userId: string): Promise<AdminAskReadiness> => {
+    const res = await apiFetch(`/api/admin/ask/users/${userId}/readiness`);
+    return res.json();
+  };
+
+  const reindexAskForUser = async (userId: string): Promise<AdminAskReindexResult> => {
+    const res = await apiFetch(`/api/admin/ask/users/${userId}/reindex`, { method: "POST" });
+    return res.json();
+  };
+
   return {
     items, total, loading, error, syncError, syncResult, refresh,
     search, setSearch,
     grantCredits, setAccountStatus, setPlan,
     getUserFlags, setUserFlagOverride, clearUserFlagOverride,
+    getAskReadiness, reindexAskForUser,
   };
 }
