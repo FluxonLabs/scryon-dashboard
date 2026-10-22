@@ -265,6 +265,36 @@ export interface AdminUserSummary {
   lastLoginAt: string | null;
 }
 
+export interface AdminAnalyticsDailyActivity {
+  date: string;
+  newUsers: number;
+  activeUsers: number;
+  transcriptions: number;
+  completedTranscriptions: number;
+  failedTranscriptions: number;
+  audioSeconds: number;
+}
+
+export interface AdminAnalytics {
+  period: { from: string; to: string };
+  overview: {
+    totalUsers: number;
+    newUsers: number;
+    activeUsers: number;
+    activatedUsers: number;
+    totalTranscriptions: number;
+    completedTranscriptions: number;
+    failedTranscriptions: number;
+    totalAudioSeconds: number;
+    completionRate: number;
+    failureRate: number;
+  };
+  activity: AdminAnalyticsDailyActivity[];
+  plans: Record<string, number>;
+  callStatuses: Record<string, number>;
+  outputLanguages: Record<string, number>;
+}
+
 /** `GET /api/admin/audit-log` row. */
 export interface AdminAuditLogEntry {
   id: string;

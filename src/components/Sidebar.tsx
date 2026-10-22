@@ -11,6 +11,7 @@ import { useProfile } from "@/hooks/useProfile";
 import { cn } from "@/lib/utils";
 import {
   LayoutDashboard,
+  ChartNoAxesCombined,
   Phone,
   CheckSquare,
   Users,
@@ -35,12 +36,14 @@ const USER_NAV = [
 // admin console (super admins also get account creation, added in the admin page).
 const ADMIN_NAV = [
   { href: "/admin",    icon: Shield,    label: "Admin" },
+  { href: "/analytics", icon: ChartNoAxesCombined, label: "Analytics" },
   { href: "/settings", icon: Settings,  label: "Settings" },
 ];
 
 // Super admins additionally get account creation.
 const SUPER_ADMIN_NAV = [
   { href: "/admin",          icon: Shield,   label: "Admin" },
+  { href: "/analytics",      icon: ChartNoAxesCombined, label: "Analytics" },
   { href: "/create-account", icon: UserPlus, label: "Create account" },
   { href: "/settings",       icon: Settings, label: "Settings" },
 ];
@@ -52,9 +55,6 @@ export function Sidebar() {
   const { profile } = useProfile();
   const nav = profile?.isSuperAdmin ? SUPER_ADMIN_NAV : profile?.isAdmin ? ADMIN_NAV : USER_NAV;
   const [open, setOpen] = useState(false);
-
-  // Close drawer whenever the route changes.
-  useEffect(() => { setOpen(false); }, [pathname]);
 
   // Lock body scroll while drawer is open on mobile.
   useEffect(() => {
@@ -70,12 +70,13 @@ export function Sidebar() {
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
-  const NavItems = () => (
+  const navItems = (
     <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
       {nav.map(({ href, icon: Icon, label }) => (
         <Link
           key={href}
           href={href}
+          onClick={() => setOpen(false)}
           className={cn(
             "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
             isActive(href)
@@ -90,11 +91,11 @@ export function Sidebar() {
     </nav>
   );
 
-  const UserFooter = () => (
+  const userFooter = (
     <div className="border-t border-[var(--border)] p-3">
       <div className="flex items-center gap-3 px-2 py-2 mb-1">
         {user?.photoURL ? (
-          <img src={user.photoURL} alt="" className="w-7 h-7 rounded-full" />
+          <Image src={user.photoURL} alt="" width={28} height={28} unoptimized className="w-7 h-7 rounded-full object-cover" />
         ) : (
           <div className="w-7 h-7 rounded-full bg-[var(--brand)] flex items-center justify-center text-white text-xs font-bold">
             {user?.displayName?.[0] ?? "U"}
@@ -117,7 +118,7 @@ export function Sidebar() {
     </div>
   );
 
-  const Logo = () => (
+  const logo = (
     <Link href="/">
       <Image src="/logo-blue.png"  alt="Scryon" width={90} height={30} className="h-7 w-auto block dark:hidden" />
       <Image src="/logo-white.png" alt="Scryon" width={90} height={30} className="h-7 w-auto hidden dark:block" />
@@ -135,7 +136,7 @@ export function Sidebar() {
         >
           <Menu size={20} />
         </button>
-        <Logo />
+        {logo}
       </header>
 
       {/* ── Mobile backdrop ─────────────────────────────────────────── */}
@@ -160,7 +161,7 @@ export function Sidebar() {
       >
         {/* Logo row */}
         <div className="px-5 h-16 flex items-center justify-between border-b border-[var(--border)] shrink-0">
-          <Logo />
+          {logo}
           {/* Close button — mobile only */}
           <button
             onClick={() => setOpen(false)}
@@ -171,8 +172,8 @@ export function Sidebar() {
           </button>
         </div>
 
-        <NavItems />
-        <UserFooter />
+        {navItems}
+        {userFooter}
       </aside>
     </>
   );
