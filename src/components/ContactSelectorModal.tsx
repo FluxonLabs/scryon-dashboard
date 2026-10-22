@@ -33,7 +33,7 @@ export function ContactSelectorModal({ contacts, contactsLoading, currentContact
       <div className="w-full max-w-sm bg-[var(--surface-2)] border border-[var(--border)] rounded-2xl shadow-xl max-h-[80vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)] shrink-0">
-          <h2 className="text-base font-semibold text-[var(--foreground)]">Assign contact</h2>
+          <h2 className="text-base font-semibold text-[var(--foreground)]">Assign group</h2>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--foreground)] hover:bg-[var(--surface)] transition-colors"
@@ -58,7 +58,7 @@ export function ContactSelectorModal({ contacts, contactsLoading, currentContact
                   <UserMinus size={14} className="text-[var(--negative)]" />
                 )}
               </div>
-              <span className="text-sm font-medium text-[var(--negative)]">Remove contact</span>
+              <span className="text-sm font-medium text-[var(--negative)]">Remove group</span>
             </button>
           )}
 
@@ -71,7 +71,7 @@ export function ContactSelectorModal({ contacts, contactsLoading, currentContact
             <div className="text-center py-10 px-5">
               <Users size={24} className="text-[var(--text-muted)] mx-auto mb-2" />
               <p className="text-sm text-[var(--text-muted)]">
-                No contacts yet. Create one in the Contacts page.
+                No groups yet. Create one in the Groups page.
               </p>
             </div>
           ) : (

@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 import type { AdminAuditLogEntry, Page } from "@/types";
 
 /** `GET /api/admin/audit-log` — admin-only, most-recent-first. */
-export function useAdminAuditLog(pageSize = 50) {
+export function useAdminAuditLog(pageSize = 25, enabled = true) {
   const [items, setItems] = useState<AdminAuditLogEntry[]>([]);
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
@@ -19,7 +19,7 @@ export function useAdminAuditLog(pageSize = 50) {
       const params = new URLSearchParams({ page: String(pageIndex), size: String(pageSize) });
       const res = await apiFetch(`/api/admin/audit-log?${params}`);
       const data: Page<AdminAuditLogEntry> = await res.json();
-      setItems((prev) => (pageIndex > 0 ? [...prev, ...data.content] : data.content));
+      setItems(data.content);
       setHasMore(pageIndex + 1 < data.totalPages);
       setPage(pageIndex);
     } catch (e) {
@@ -29,10 +29,10 @@ export function useAdminAuditLog(pageSize = 50) {
     }
   }, [pageSize]);
 
-  useEffect(() => { load(0); }, [load]);
+  useEffect(() => { if (!enabled) return; const timer = setTimeout(() => { void load(0); }, 0); return () => clearTimeout(timer); }, [load, enabled]);
 
-  const loadMore = () => { if (hasMore) load(page + 1); };
+  const loadMore = () => { if (hasMore && !loading) load(page + 1); };
   const refresh = () => { setItems([]); setPage(0); setHasMore(true); load(0); };
 
-  return { items, loading, error, hasMore, loadMore, refresh };
+  return { items, page, previousPage: () => { if (page > 0 && !loading) void load(page - 1); }, loading, error, hasMore, loadMore, refresh };
 }

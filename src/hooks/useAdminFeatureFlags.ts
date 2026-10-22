@@ -5,7 +5,7 @@ import { apiFetch } from "@/lib/api";
 import type { AdminFeatureFlag } from "@/types";
 
 /** `GET/PATCH /api/admin/feature-flags` — admin-only; non-admin callers get a 404. */
-export function useAdminFeatureFlags() {
+export function useAdminFeatureFlags(enabled = true) {
   const [flags, setFlags] = useState<AdminFeatureFlag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<(Error & { status?: number }) | null>(null);
@@ -23,7 +23,7 @@ export function useAdminFeatureFlags() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => { if (!enabled) return; const timer = setTimeout(() => { void load(); }, 0); return () => clearTimeout(timer); }, [load, enabled]);
 
   const toggle = async (flagKey: string, enabled: boolean): Promise<AdminFeatureFlag> => {
     const res = await apiFetch(`/api/admin/feature-flags/${flagKey}`, {

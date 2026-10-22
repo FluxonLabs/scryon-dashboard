@@ -124,7 +124,7 @@ export default function CallDetailPage({ params }: { params: Promise<{ id: strin
             ) : (
               <>
                 <UserPlus size={12} />
-                Assign contact
+                Assign group
               </>
             )}
           </button>

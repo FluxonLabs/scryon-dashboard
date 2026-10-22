@@ -8,8 +8,9 @@ import type { AccountStatus, AdminAskReadiness, AdminAskReindexResult, AdminUser
  * `GET /api/admin/users` + credit/status/plan admin actions — admin-only.
  * `search` filters by email substring server-side; changing it restarts pagination.
  */
-export function useAdminUsers(pageSize = 200) {
+export function useAdminUsers(pageSize = 25, enabled = true) {
   const [items, setItems] = useState<AdminUserSummary[]>([]);
+  const [page, setPage] = useState(0);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<(Error & { status?: number }) | null>(null);
@@ -38,26 +39,13 @@ export function useAdminUsers(pageSize = 200) {
         }
       }
 
-      const allUsers: AdminUserSummary[] = [];
-      let pageIndex = 0;
-      let pageCount = 1;
-
-      // The API is intentionally paginated, but an admin account directory should display the
-      // complete result set. Fetch every page in stable backend order instead of silently
-      // stopping after the first 50 rows.
-      while (pageIndex < pageCount) {
-        const params = new URLSearchParams({ page: String(pageIndex), size: String(pageSize) });
-        if (searchTerm) params.set("search", searchTerm);
-        const res = await apiFetch(`/api/admin/users?${params}`);
-        const data: Page<AdminUserSummary> = await res.json();
-        if (requestId !== requestRef.current) return;
-        allUsers.push(...data.content);
-        pageCount = data.totalPages;
-        setTotal(data.totalElements);
-        pageIndex += 1;
-      }
-
-      if (requestId === requestRef.current) setItems(allUsers);
+      const params = new URLSearchParams({ page: String(page), size: String(pageSize) });
+      if (searchTerm) params.set("search", searchTerm);
+      const res = await apiFetch(`/api/admin/users?${params}`);
+      const data: Page<AdminUserSummary> = await res.json();
+      if (requestId !== requestRef.current) return;
+      setItems(data.content);
+      setTotal(data.totalElements);
     } catch (e) {
       if (requestId === requestRef.current) {
         setError(e instanceof Error ? e : new Error("Failed to load users"));
@@ -65,12 +53,15 @@ export function useAdminUsers(pageSize = 200) {
     } finally {
       if (requestId === requestRef.current) setLoading(false);
     }
-  }, [pageSize]);
+  }, [pageSize, page]);
 
   useEffect(() => {
+    if (!enabled) return;
     const timer = window.setTimeout(() => { void load(search); }, 0);
-    return () => window.clearTimeout(timer);
-  }, [load, search]);
+    return () => { window.clearTimeout(timer); requestRef.current += 1; };
+  }, [load, search, enabled]);
+
+  useEffect(() => () => { if (debounceRef.current) clearTimeout(debounceRef.current); }, []);
 
   const refresh = () => {
     hasSyncedRef.current = false;
@@ -81,7 +72,7 @@ export function useAdminUsers(pageSize = 200) {
 
   const setSearch = (value: string) => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => setSearchState(value), 300);
+    debounceRef.current = setTimeout(() => { setPage(0); setSearchState(value); }, 300);
   };
 
   const grantCredits = async (
@@ -172,7 +163,7 @@ export function useAdminUsers(pageSize = 200) {
   };
 
   return {
-    items, total, loading, error, syncError, syncResult, refresh,
+    items, total, page, setPage, totalPages: Math.ceil(total / pageSize), loading, error, syncError, syncResult, refresh,
     search, setSearch,
     grantCredits, setAccountStatus, setPlan,
     getUserFlags, setUserFlagOverride, clearUserFlagOverride,

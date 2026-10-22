@@ -48,7 +48,7 @@ export function ContactFormModal({ contact, onSave, onClose }: Props) {
       });
       onClose();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to save contact");
+      setError(e instanceof Error ? e.message : "Failed to save group");
     } finally {
       setSaving(false);
     }
@@ -63,7 +63,7 @@ export function ContactFormModal({ contact, onSave, onClose }: Props) {
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border)]">
           <h2 className="text-base font-semibold text-[var(--foreground)]">
-            {isEdit ? "Edit contact" : "New contact"}
+            {isEdit ? "Edit group" : "New group"}
           </h2>
           <button
             onClick={onClose}
@@ -127,7 +127,7 @@ export function ContactFormModal({ contact, onSave, onClose }: Props) {
               className="flex-1 py-2 rounded-lg bg-[var(--brand)] text-white text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
             >
               {saving && <Loader2 size={14} className="animate-spin" />}
-              {isEdit ? "Save changes" : "Create contact"}
+              {isEdit ? "Save changes" : "Create group"}
             </button>
           </div>
         </form>

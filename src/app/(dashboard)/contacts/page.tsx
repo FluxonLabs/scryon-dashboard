@@ -28,7 +28,7 @@ export default function ContactsPage() {
     try {
       await deleteContact(c.id);
     } catch {
-      alert("Failed to delete contact. Please try again.");
+      alert("Failed to delete group. Please try again.");
     } finally {
       setDeletingId(null);
     }
@@ -39,9 +39,9 @@ export default function ContactsPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--foreground)]">Contacts</h1>
+          <h1 className="text-2xl font-bold text-[var(--foreground)]">Groups</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
-            {loading ? "Loading…" : `${contacts.length} contact${contacts.length !== 1 ? "s" : ""}`}
+            {loading ? "Loading…" : `${contacts.length} group${contacts.length !== 1 ? "s" : ""}`}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -56,7 +56,7 @@ export default function ContactsPage() {
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--brand)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <Plus size={15} />
-            New contact
+            New group
           </button>
         </div>
       </div>
@@ -74,16 +74,16 @@ export default function ContactsPage() {
       ) : contacts.length === 0 ? (
         <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-12 text-center">
           <Users size={32} className="text-[var(--text-muted)] mx-auto mb-3" />
-          <p className="text-sm font-medium text-[var(--foreground)] mb-1">No contacts yet</p>
+          <p className="text-sm font-medium text-[var(--foreground)] mb-1">No groups yet</p>
           <p className="text-xs text-[var(--text-muted)] mb-4">
-            Create a contact to assign them to calls.
+            Create a group to organize your calls.
           </p>
           <button
             onClick={openCreate}
             className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--brand)] text-white text-sm font-medium hover:opacity-90 transition-opacity"
           >
             <Plus size={14} />
-            New contact
+            New group
           </button>
         </div>
       ) : (
