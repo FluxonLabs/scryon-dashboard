@@ -8,6 +8,7 @@ export async function apiFetch(path: string, options?: RequestInit) {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      "X-Time-Zone": Intl.DateTimeFormat().resolvedOptions().timeZone,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers ?? {}),
     },
