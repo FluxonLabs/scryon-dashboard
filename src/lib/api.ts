@@ -8,7 +8,10 @@ export async function apiFetch(path: string, options?: RequestInit) {
     ...options,
     headers: {
       "Content-Type": "application/json",
-      "X-Time-Zone": Intl.DateTimeFormat().resolvedOptions().timeZone,
+      // Enable only after the target backend allows X-Time-Zone in CORS.
+      ...(process.env.NEXT_PUBLIC_API_TIME_ZONE_ENABLED === "true"
+        ? { "X-Time-Zone": Intl.DateTimeFormat().resolvedOptions().timeZone }
+        : {}),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...(options?.headers ?? {}),
     },
