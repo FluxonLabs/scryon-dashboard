@@ -6,8 +6,9 @@ import { useAdminFeatureFlags } from "@/hooks/useAdminFeatureFlags";
 import { useAdminUsers } from "@/hooks/useAdminUsers";
 import { useAdminAuditLog } from "@/hooks/useAdminAuditLog";
 import { cn } from "@/lib/utils";
-import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History, SlidersHorizontal, DatabaseZap } from "lucide-react";
-import type { AccountStatus, AdminAskReadiness, AdminAuditLogEntry, AdminFeatureFlag, AdminUserFeatureFlags, AdminUserSummary, UserPlan } from "@/types";
+import { apiFetch } from "@/lib/api";
+import { ShieldOff, RefreshCw, Loader2, Gift, Search, ShieldAlert, History, SlidersHorizontal, DatabaseZap, Megaphone, Send, Trash2 } from "lucide-react";
+import type { AccountStatus, AdminAskReadiness, AdminAuditLogEntry, AdminFeatureFlag, AdminUserFeatureFlags, AdminUserSummary, UserPlan, Announcement } from "@/types";
 
 // Onboarding flags are managed per account from each user row's Onboarding panel, not as a
 // global on/off toggle, so they're hidden from the global Feature flags section.
@@ -56,6 +57,7 @@ export default function AdminPage() {
       </div>
 
       <FeatureFlagsSection flags={flags} loading={flagsLoading} toggle={toggle} />
+      <AnnouncementsSection users={users} />
       <UsersSection
         users={users}
         total={usersTotal}
@@ -82,6 +84,86 @@ export default function AdminPage() {
       />
     </div>
   );
+}
+
+function AnnouncementsSection({ users }: { users: AdminUserSummary[] }) {
+  const [items, setItems] = useState<Announcement[]>([]);
+  const [title, setTitle] = useState("");
+  const [message, setMessage] = useState("");
+  const [actionLabel, setActionLabel] = useState("");
+  const [actionUrl, setActionUrl] = useState("");
+  const [targetUserId, setTargetUserId] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function load() {
+    setLoading(true);
+    try { setItems(await (await apiFetch("/api/admin/announcements")).json()); setError(null); }
+    catch { setError("Could not load announcements."); }
+    finally { setLoading(false); }
+  }
+  useEffect(() => {
+    let active = true;
+    apiFetch("/api/admin/announcements")
+      .then(res => res.json())
+      .then(data => { if (active) { setItems(data); setError(null); } })
+      .catch(() => { if (active) setError("Could not load announcements."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+
+  async function publish(e: React.FormEvent) {
+    e.preventDefault();
+    if (!title.trim() || !message.trim()) return;
+    setSaving(true);
+    try {
+      await apiFetch("/api/admin/announcements", { method: "POST", body: JSON.stringify({
+        title: title.trim(), message: message.trim(), actionLabel: actionLabel.trim() || null,
+        actionUrl: actionUrl.trim() || null, targetUserId: targetUserId || null,
+      }) });
+      setTitle(""); setMessage(""); setActionLabel(""); setActionUrl(""); setTargetUserId("");
+      await load();
+    } catch { setError("Could not publish the announcement."); }
+    finally { setSaving(false); }
+  }
+
+  async function deactivate(id: string) {
+    if (!confirm("Remove this announcement from users' inboxes?")) return;
+    try { await apiFetch(`/api/admin/announcements/${id}`, { method: "DELETE" }); await load(); }
+    catch { setError("Could not deactivate the announcement."); }
+  }
+
+  return <section>
+    <div className="flex items-center gap-2 mb-3"><Megaphone size={16} className="text-[var(--text-secondary)]" />
+      <h2 className="text-sm font-semibold text-[var(--foreground)]">Announcements</h2></div>
+    <form onSubmit={publish} className="rounded-xl border border-[var(--border)] bg-[var(--surface)] p-4 space-y-3">
+      <label className="block"><span className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">Audience</span>
+        <select value={targetUserId} onChange={e => setTargetUserId(e.target.value)} className="w-full rounded-lg border border-[var(--border)] bg-[var(--surface)] px-3 py-2 text-sm text-[var(--foreground)]">
+          <option value="">All users (broadcast)</option>
+          {users.map(user => <option key={user.id} value={user.id}>{user.email ?? user.displayName ?? user.id}</option>)}
+        </select>
+      </label>
+      <div className="grid gap-3 sm:grid-cols-2">
+        <input value={title} onChange={e => setTitle(e.target.value)} maxLength={160} required placeholder="Announcement title" className="rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-[var(--foreground)]" />
+        <input value={actionLabel} onChange={e => setActionLabel(e.target.value)} maxLength={80} placeholder="Button label (optional)" className="rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-[var(--foreground)]" />
+      </div>
+      <textarea value={message} onChange={e => setMessage(e.target.value)} maxLength={5000} required rows={3} placeholder="Message shown to all users" className="w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-[var(--foreground)] resize-y" />
+      <input value={actionUrl} onChange={e => setActionUrl(e.target.value)} maxLength={1024} type="url" placeholder="https://… (optional)" className="w-full rounded-lg border border-[var(--border)] bg-transparent px-3 py-2 text-sm text-[var(--foreground)]" />
+      <div className="flex items-center justify-between gap-3"><p className="text-xs text-[var(--text-muted)]">{targetUserId ? "Only the selected user will receive this message." : "Publishing makes this unread for every account."}</p>
+        <button disabled={saving} className="flex items-center gap-2 rounded-lg bg-[var(--brand)] px-4 py-2 text-sm font-medium text-white disabled:opacity-50">{saving ? <Loader2 size={15} className="animate-spin" /> : <Send size={15} />} Publish</button></div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+    </form>
+    <div className="mt-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border-subtle)] overflow-hidden">
+      {loading ? <div className="p-4"><div className="h-10 bg-[var(--border)] rounded animate-pulse" /></div> : items.length === 0 ?
+        <p className="p-5 text-center text-xs text-[var(--text-muted)]">No announcements published yet.</p> : items.map(item =>
+          <div key={item.id} className="p-4 flex gap-3 justify-between"><div className={cn("min-w-0", !item.active && "opacity-50")}>
+            <p className="text-sm font-medium text-[var(--foreground)]">{item.title}</p><p className="text-xs text-[var(--text-secondary)] mt-1 line-clamp-2">{item.message}</p>
+            <p className="text-[10px] text-[var(--text-muted)] mt-1">{new Date(item.publishedAt).toLocaleString()} · {item.active ? "Active" : "Inactive"} · {item.targetUserId ? (users.find(u => u.id === item.targetUserId)?.email ?? "Individual user") : "Broadcast"}</p></div>
+            {item.active && <button type="button" onClick={() => deactivate(item.id)} aria-label="Deactivate announcement" className="shrink-0 p-2 text-[var(--text-muted)] hover:text-red-500"><Trash2 size={16} /></button>}
+          </div>)}
+    </div>
+  </section>;
 }
 
 function FeatureFlagsSection({

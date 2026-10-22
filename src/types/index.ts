@@ -1,3 +1,15 @@
+export interface Announcement {
+  id: string;
+  title: string;
+  message: string;
+  actionLabel: string | null;
+  actionUrl: string | null;
+  publishedAt: string;
+  expiresAt: string | null;
+  active: boolean;
+  targetUserId: string | null;
+}
+
 // ─── Contacts ────────────────────────────────────────────────────────────────
 
 export interface Contact {
