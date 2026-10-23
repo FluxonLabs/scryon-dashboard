@@ -1,6 +1,8 @@
 import { auth } from "./firebase";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+// The deployed dashboard is the production control plane and must not inherit
+// a stale preview/staging environment variable from Vercel.
+const BASE_URL = "https://api.scryon.app";
 
 export async function apiFetch(path: string, options?: RequestInit) {
   const token = await auth?.currentUser?.getIdToken();
