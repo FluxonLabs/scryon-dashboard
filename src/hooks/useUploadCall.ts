@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { auth } from "@/lib/firebase";
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+const BASE_URL = "https://api.scryon.app";
 
 export interface UploadResult {
   id: string;
